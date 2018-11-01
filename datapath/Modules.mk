@@ -24,6 +24,7 @@ openvswitch_sources = \
 	flow.c \
 	flow_netlink.c \
 	flow_table.c \
+    tt.c \
 	vport.c \
 	vport-internal_dev.c \
 	vport-netdev.c
@@ -41,6 +42,7 @@ openvswitch_headers = \
 	flow.h \
 	flow_netlink.h \
 	flow_table.h \
+    tt.h \
 	vlan.h \
 	vport.h \
 	vport-internal_dev.h \

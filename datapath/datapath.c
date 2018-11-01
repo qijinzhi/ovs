@@ -61,6 +61,7 @@
 #include "vlan.h"
 #include "vport-internal_dev.h"
 #include "vport-netdev.h"
+#include "tt.h"
 
 int ovs_net_id __read_mostly;
 EXPORT_SYMBOL_GPL(ovs_net_id);
@@ -257,18 +258,136 @@ void ovs_dp_detach_port(struct vport *p)
 	ovs_vport_del(p);
 }
 
+// tt报文流程的处理
+// skb是一个tt格式的报文
+static void ovs_dp_process_tt_packet(struct sk_buff *skb) {
+    struct vport *p = OVS_CB(skb)->input_vport;
+    struct datapath *dp = p->dp;
+    struct timeval *arrive_stamp = NULL;
+    struct tt_table* arrive_tt_table;
+    struct tt_header* tthdr;
+    struct tt_table_item* tt_item;
+    struct tt_table* send_tt_table;
+    int err;
+
+    printk(KERN_ALERT "DEBUG: ovs_dp_process_tt_packet  %s %d \n", __FUNCTION__, __LINE__);
+
+    /**
+    //1. 取出skb的时间戳和flow_id
+    skb_get_timestamp(skb, arrive_stamp);
+    **/
+    tthdr = (struct tt_header*)skb_tt_header(skb);
+    if (!tthdr) {
+        printk(KERN_ALERT "DEBUG: get tt header error %s %d \n", __FUNCTION__, __LINE__);
+        return;
+    }
+    
+    //2. 查对应vport的tt到大表，取出对应的表项
+    arrive_tt_table = ovsl_dereference(p->arrive_tt_table);
+    if (!arrive_tt_table) {
+        printk(KERN_ALERT "DEBUG: arrive_tt_table is empty %s %d \n", __FUNCTION__, __LINE__);
+        return;
+    }
+    tt_item = tt_table_lookup(arrive_tt_table, tthdr->flow_id);
+    if (tt_item)
+        printk(KERN_ALERT "arrive_table: flow_id=>%d, buffer_id=>%d, length=>%d, %s %d \n", 
+            tt_item->flow_id, tt_item->buffer_id, tt_item->len,__FUNCTION__, __LINE__);
+    
+    // test, 从源端口发出TT报文和UDRP报文
+    send_tt_table = ovsl_dereference(p->send_tt_table);
+    tt_item = tt_table_lookup(send_tt_table, tthdr->flow_id);
+    if (tt_item)
+        printk(KERN_ALERT "send_table: flow_id=>%d, buffer_id=>%d, length=>%d, %s %d \n", 
+            tt_item->flow_id, tt_item->buffer_id, tt_item->len,__FUNCTION__, __LINE__);
+   
+    // 发出tt报文
+    struct vport *vport;
+    struct hlist_head *head;
+    int i;
+    
+    for (i=0; i<DP_VPORT_HASH_BUCKETS; i++) {
+        if (&dp->ports[i] != NULL) {
+            head = &dp->ports[i];
+
+            hlist_for_each_entry_rcu(vport, head, dp_hash_node) {
+                if (vport->port_no != p->port_no) {
+                    struct sk_buff *out_skb2 = skb_clone(skb, GFP_ATOMIC);
+                    ovs_vport_send(vport, out_skb2);
+                    printk(KERN_ALERT "DEBUG: send packet out to port: port no: %d %s %d \n", vport->port_no, __FUNCTION__, __LINE__);
+                }
+            }
+        }
+    }
+    
+    err = tt_to_trdp(skb); //转化为trdp数据报文
+    if (err) {
+        printk(KERN_ALERT "DEBUG: tt to trdp failed! %s %d \n", __FUNCTION__, __LINE__);
+        return;
+    } 
+
+    printk(KERN_ALERT "DEBUG: port no: %d %s %d \n", p->port_no, __FUNCTION__, __LINE__);    
+    //struct sk_buff *out_skb2 = skb_clone(skb, GFP_ATOMIC);
+    //ovs_vport_send(p, out_skb2);
+    
+
+    // 发出udp报文
+    for (i=0; i<DP_VPORT_HASH_BUCKETS; i++) {
+        if (&dp->ports[i] != NULL) {
+            head = &dp->ports[i];
+
+            hlist_for_each_entry_rcu(vport, head, dp_hash_node) {
+                if (vport->port_no != p->port_no) {
+                    struct sk_buff *out_skb2 = skb_clone(skb, GFP_ATOMIC);
+                    ovs_vport_send(vport, out_skb2);
+                    printk(KERN_ALERT "DEBUG: send packet out to port: port no: %d %s %d \n", vport->port_no, __FUNCTION__, __LINE__);
+                }
+            }
+        }
+    }
+    //3. 判断tt报文到达时间是否合理
+
+    //4. 将tt报文放入到对应的buffer中
+    
+    // *** 测试情况下的处理
+    //5. sleep一下
+
+    //6. 从buffer中获得要发送的报文，将其进行发送
+    
+}
+
 /* Must be called with rcu_read_lock. */
 void ovs_dp_process_packet(struct sk_buff *skb, struct sw_flow_key *key)
 {
-	const struct vport *p = OVS_CB(skb)->input_vport;
-	struct datapath *dp = p->dp;
-	struct sw_flow *flow;
-	struct sw_flow_actions *sf_acts;
-	struct dp_stats_percpu *stats;
-	u64 *stats_counter;
-	u32 n_mask_hit;
+    const struct vport *p;
+    struct datapath *dp;
+    struct sw_flow *flow;
+    struct sw_flow_actions *sf_acts;
+    struct dp_stats_percpu *stats;
+    u64 *stats_counter;
+    u32 n_mask_hit;
+    int error;
 
-	stats = this_cpu_ptr(dp->stats_percpu);
+    // TRDP报文，先将其转化为TT报文，并走TT报文处理流程
+    if (is_trdp_packet(skb)) {
+        error = trdp_to_tt(skb);
+        if (unlikely(error)) {
+            kfree_skb(skb);
+            printk(KERN_ALERT "DEBUG: can't translate trdp packet into tt packet %s %d \n", __FUNCTION__, __LINE__);
+            return;
+        }
+        ovs_dp_process_tt_packet(skb);
+        return;
+    }
+
+    //TT报文，直接走TT报文处理流程
+    if (is_tt_packet(skb)) {
+        ovs_dp_process_tt_packet(skb);
+        return;
+    }
+
+    p = OVS_CB(skb)->input_vport;
+    dp = p->dp;
+    stats = this_cpu_ptr(dp->stats_percpu);
 
 	/* Look up flow. */
 	flow = ovs_flow_tbl_lookup_stats(&dp->table, key, skb_get_hash(skb),
@@ -2321,9 +2440,8 @@ DEFINE_COMPAT_PNET_REG_FUNC(device);
 static int __init dp_init(void)
 {
 	int err;
-
 	BUILD_BUG_ON(sizeof(struct ovs_skb_cb) > FIELD_SIZEOF(struct sk_buff, cb));
-
+        printk(KERN_ALERT "DEBUG: dp_init  %s %d \n", __FUNCTION__, __LINE__);
 	pr_info("Open vSwitch switching datapath %s\n", VERSION);
 
 	err = compat_init();
