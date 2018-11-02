@@ -263,7 +263,7 @@ void ovs_dp_detach_port(struct vport *p)
 static void ovs_dp_process_tt_packet(struct sk_buff *skb) {
     struct vport *p = OVS_CB(skb)->input_vport;
     struct datapath *dp = p->dp;
-    struct timeval *arrive_stamp = NULL;
+    struct timeval arrive_stamp;
     struct tt_table* arrive_tt_table;
     struct tt_header* tthdr;
     struct tt_table_item* tt_item;
@@ -272,17 +272,22 @@ static void ovs_dp_process_tt_packet(struct sk_buff *skb) {
 
     printk(KERN_ALERT "DEBUG: ovs_dp_process_tt_packet  %s %d \n", __FUNCTION__, __LINE__);
 
-    /**
+    if (!(skb)->tstamp.tv64)
+        printk(KERN_ALERT "DEBUG: get tstamp error %s %d \n", __FUNCTION__, __LINE__);
+
+    //do_gettimeofday(&arrive_stamp);
+    //printk(KERN_ALERT "DEBUG: arrive_stamp: %lld : %lld %s %d \n", arrive_stamp.tv_sec, arrive_stamp.tv_usec, __FUNCTION__, __LINE__);
     //1. 取出skb的时间戳和flow_id
-    skb_get_timestamp(skb, arrive_stamp);
-    **/
+    skb_get_timestamp(skb, &arrive_stamp);
+    printk(KERN_ALERT "DEBUG: arrive_stamp: %lld : %lld %s %d \n", arrive_stamp.tv_sec, arrive_stamp.tv_usec, __FUNCTION__, __LINE__);
+    
     tthdr = (struct tt_header*)skb_tt_header(skb);
     if (!tthdr) {
         printk(KERN_ALERT "DEBUG: get tt header error %s %d \n", __FUNCTION__, __LINE__);
         return;
     }
     
-    //2. 查对应vport的tt到大表，取出对应的表项
+    //2. 查对应vport的tt到达表，取出对应的表项
     arrive_tt_table = ovsl_dereference(p->arrive_tt_table);
     if (!arrive_tt_table) {
         printk(KERN_ALERT "DEBUG: arrive_tt_table is empty %s %d \n", __FUNCTION__, __LINE__);

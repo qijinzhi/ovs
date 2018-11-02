@@ -559,8 +559,8 @@ int ovs_vport_receive(struct vport *vport, struct sk_buff *skb,
 
 	ovs_skb_init_inner_protocol(skb);
 	skb_clear_ovs_gso_cb(skb);
-	printk(KERN_ALERT "DEBUG: ovs_flow_key_extract %s %d \n", __FUNCTION__, __LINE__);
-	/* Extract flow from 'skb' into 'key'. */
+	
+    /* Extract flow from 'skb' into 'key'. */
 	error = ovs_flow_key_extract(tun_info, skb, &key);
 	if (unlikely(error)) {
 		kfree_skb(skb);
