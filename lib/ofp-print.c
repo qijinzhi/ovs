@@ -3448,7 +3448,9 @@ ofp_to_string__(const struct ofp_header *oh, enum ofpraw raw,
     case OFPTYPE_NXT_TLV_TABLE_REPLY:
         ofp_print_tlv_table_reply(string, msg);
         break;
-
+	
+	case OFPTYPE_TXT_TT_TABLE_MOD:
+		break;
     }
 }
 

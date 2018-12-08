@@ -42,6 +42,7 @@
 #include "ofpbuf.h"
 #include "ofproto-provider.h"
 #include "openflow/nicira-ext.h"
+#include "openflow/tsinghua-ext.h"
 #include "openflow/openflow.h"
 #include "ovs-rcu.h"
 #include "dp-packet.h"
@@ -61,6 +62,7 @@
 #include "unixctl.h"
 #include "openvswitch/vlog.h"
 #include "bundles.h"
+#include "tt.h"
 
 VLOG_DEFINE_THIS_MODULE(ofproto);
 
@@ -6984,7 +6986,7 @@ handle_bundle_control(struct ofconn *ofconn, const struct ofp_header *oh)
     reply.bundle_id = bctrl.bundle_id;
 
     switch (bctrl.type) {
-        case OFPBCT_OPEN_REQUEST:
+    case OFPBCT_OPEN_REQUEST:
         error = ofp_bundle_open(ofconn, bctrl.bundle_id, bctrl.flags);
         reply.type = OFPBCT_OPEN_REPLY;
         break;
@@ -7106,6 +7108,27 @@ handle_tlv_table_request(struct ofconn *ofconn, const struct ofp_header *oh)
 
     ofconn_send_reply(ofconn, b);
     return 0;
+}
+
+static enum ofperr
+handle_tt_table_mod(struct ofconn *ofconn, const struct ofp_header *oh)
+{
+	struct ofputil_tt_table_mod ttm;
+	enum ofperr error;
+    
+    error = reject_slave_controller(ofconn);
+    if (error) {
+        return error;
+    }
+	/* get the payload in the openflow message 
+	* and transform into struct ofputil_tt_table_mod */
+    error = ofputil_decode_tt_table_mod(oh, &ttm);
+    if (error) {
+        return error;
+    }
+    /* deal with the ofputil_tt_table_mod */
+    error = tt_table_mod(ofconn, &ttm);
+    return error;
 }
 
 static enum ofperr
@@ -7257,6 +7280,9 @@ handle_openflow__(struct ofconn *ofconn, const struct ofpbuf *msg)
 
     case OFPTYPE_NXT_TLV_TABLE_REQUEST:
         return handle_tlv_table_request(ofconn, oh);
+	
+	case OFPTYPE_TXT_TT_TABLE_MOD:
+		return handle_tt_table_mod(ofconn, oh);
 
     case OFPTYPE_HELLO:
     case OFPTYPE_ERROR:

@@ -203,6 +203,7 @@ static int ovs_datapath_family;
 static int ovs_vport_family;
 static int ovs_flow_family;
 static int ovs_packet_family;
+static int ovs_tt_family;
 
 /* Generic Netlink multicast groups for OVS.
  *
@@ -2342,6 +2343,71 @@ dpif_netlink_ct_flush(struct dpif *dpif OVS_UNUSED, const uint16_t *zone)
 }
 #endif
 
+/* TT */
+struct dpif_netlink_tt {
+    /* Generic Netlink header */
+	uint8_t cmd;
+    /* Attributes */
+	uint16_t flow_id;  
+    uint32_t cycle;    
+};
+
+/* Clears 'tt' to "empty" values. */
+static void
+dpif_netlink_tt_init(struct dpif_netlink_tt *tt)
+{
+    memset(tt, 0, sizeof *tt);
+}
+
+static void
+dpif_netlink_tt_to_ofpbuf(const struct dpif_netlink_tt *tt, struct ofpbuf *buf)
+{
+    nl_msg_put_genlmsghdr(buf, 0, ovs_tt_family, 
+                          NLM_F_REQUEST, tt->cmd, OVS_TT_VERSION);
+    if (tt->flow_id) {
+    	nl_msg_put_u16(buf, OVS_TT_ATTR_FLOW_ID, tt->flow_id);
+    }
+    
+    if (tt->cycle) {
+        nl_msg_put_u32(buf, OVS_TT_ATTR_CYCLE, tt->cycle);
+    }
+}
+
+static int
+dpif_netlink_tt_transact(const struct dpif_netlink_tt *request,
+						 struct dpif_netlink_tt *reply, struct ofpbuf **bufp)
+{
+    struct ofpbuf *request_buf;
+    int error;
+    
+    ovs_assert((reply != NULL) == (bufp != NULL));
+    
+    request_buf = ofpbuf_new(1024);
+    dpif_netlink_tt_to_ofpbuf(request, request_buf);
+    error = nl_transact(NETLINK_GENERIC, request_buf, bufp);
+    ofpbuf_delete(request_buf);
+    
+    return error;
+}
+
+static int
+dpif_netlink_tt_table_add(struct dpif_tt_flow *tt_flow)
+{
+    struct dpif_netlink_tt tt_request, tt;
+    struct ofpbuf *buf;
+    int error;
+    
+    dpif_netlink_tt_init(&tt_request);
+    tt_request.cmd = OVS_TT_CMD_ADD;
+    tt_request.flow_id = tt_flow->flow_id;
+    tt_request.cycle = tt_flow->cycle;
+    error = dpif_netlink_tt_transact(&tt_request, &tt, &buf);
+    if (error) {
+        return error;
+    }
+    return 0;
+}
+
 const struct dpif_class dpif_netlink_class = {
     "system",
     NULL,                       /* init */
@@ -2393,6 +2459,7 @@ const struct dpif_class dpif_netlink_class = {
     NULL,                       /* ct_dump_done */
     NULL,                       /* ct_flush */
 #endif
+	dpif_netlink_tt_table_add,        /* tt_table_add*/
 };
 
 static int
@@ -2419,11 +2486,13 @@ dpif_netlink_init(void)
             error = nl_lookup_genl_family(OVS_PACKET_FAMILY,
                                           &ovs_packet_family);
         }
+		if (!error) {
+			error = nl_lookup_genl_family(OVS_TT_FAMILY, &ovs_tt_family);
+		}
         if (!error) {
             error = nl_lookup_genl_mcgroup(OVS_VPORT_FAMILY, OVS_VPORT_MCGROUP,
                                            &ovs_vport_mcgroup);
         }
-
         ovsthread_once_done(&once);
     }
 

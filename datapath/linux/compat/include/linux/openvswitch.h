@@ -775,4 +775,28 @@ enum ovs_action_attr {
 
 #define OVS_ACTION_ATTR_MAX (__OVS_ACTION_ATTR_MAX - 1)
 
+/* TT */
+# define OVS_TT_FAMILY "ovs_tt"
+# define OVS_TT_VERSION 0x1
+
+enum ovs_tt_cmd {
+    OVS_TT_CMD_ADD
+};
+
+/**
+ * enum ovs_tt_attr - attributes for %OVS_TT_* commands
+ * @OVS_TT_FLOW_ID: the identification of a tt flow.
+ * @OVS_TT_ATTR_CYCLE: the cycle period of a tt flow.
+ *
+ * These attributes exist in the Generic Netlink 
+ * payload for %OVS_DP_* commands.
+ */
+enum ovs_tt_attr {
+    OVS_TT_ATTR_FLOW_ID,
+    OVS_TT_ATTR_CYCLE,
+    __OVS_TT_ATTR_MAX
+};
+
+#define OVS_TT_ATTR_MAX (__OVS_TT_ATTR_MAX - 1)
+
 #endif /* _LINUX_OPENVSWITCH_H */

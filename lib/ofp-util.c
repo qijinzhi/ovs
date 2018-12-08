@@ -9400,6 +9400,7 @@ ofputil_is_bundlable(enum ofptype type)
     case OFPTYPE_REQUESTFORWARD:
     case OFPTYPE_NXT_TLV_TABLE_REQUEST:
     case OFPTYPE_NXT_TLV_TABLE_REPLY:
+	case OFPTYPE_TXT_TT_TABLE_MOD:
         break;
     }
 
@@ -9839,4 +9840,30 @@ ofputil_encode_get_async_config(const struct ofp_header *oh,
     }
 
     return buf;
+}
+
+enum ofperr 
+ofputil_decode_tt_table_mod(const struct ofp_header *oh,
+							struct ofputil_tt_table_mod *ttm)
+{
+	struct tx_tt_table_mod *m;
+	struct ofpbuf b;
+    
+    /* get the struct tx_tt_table_mod in the openflow message 
+     * sended from the SDN controller.
+     */
+    ofpbuf_use_const(&b, oh, ntohs(oh->length));
+    m = ofpbuf_pull(&b, sizeof *m);
+	
+    /* tx_tt_table_mod --> ofputil_tt_table_mod */
+	ttm->command = m->command;
+	ttm->tt_table_size = m->tt_table_size;
+	ttm->tt_table = m->tt_table;
+	
+	/* do some error check */
+    if (b.size < sizeof(struct ofp_header)) {
+        return OFPERR_OFPBFC_MSG_BAD_LEN;
+    }
+	
+	return 0;
 }

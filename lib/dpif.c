@@ -1728,3 +1728,9 @@ dpif_supports_tnl_push_pop(const struct dpif *dpif)
 {
     return dpif_is_netdev(dpif);
 }
+
+void 
+dpif_tt_table_add(struct dpif *dpif, struct dpif_tt_flow *tt_flow)
+{
+    dpif->dpif_class->tt_table_add(tt_flow);
+}

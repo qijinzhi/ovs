@@ -2212,11 +2212,50 @@ struct genl_family dp_vport_genl_family = {
 	.n_mcgrps = 1,
 };
 
+/* tt */
+static int ovs_tt_cmd_add(struct sk_buff *skb, struct genl_info *info)
+{
+    struct sk_buff *reply;
+    struct thu_tt_flow tt_flow;
+    struct nlattr **a = info->attrs;
+    
+    if (!a[OVS_TT_ATTR_FLOW_ID] || !a[OVS_TT_ATTR_CYCLE])
+        return -1;
+    
+    tt_flow.flow_id = nla_data(a[OVS_TT_ATTR_FLOW_ID]);
+    tt_flow.cycle = nla_data(a[OVS_TT_ATTR_CYCLE]);
+    printk(KERN_CRLT "kernel: I have receive the tt flows!\n");
+}
+
+static const struct nla_policy tt_policy[] = {
+    [OVS_TT_ATTR_FLOW_ID] = { .type = NLA_U16 },
+    [OVS_TT_ATTR_CYCLE] = { .type = NLA_U32 },
+};
+
+static struct genl_ops dp_tt_genl_ops[] = {
+    {	.cmd = OVS_TT_CMD_ADD,
+        .policy = tt_policy,
+     	.soit = ovs_tt_cmd_add,
+    },
+};
+
+static struct genl_family dp_tt_genl_family = {
+    .id = GENL_ID_GENERATE,
+    .hdrsize = 0,
+    .name = OVS_TT_FAMILY,
+    .version = OVS_TT_VERSION,
+    .netnsok = true,
+    .parallel_ops = false,
+    .ops = dp_tt_genl_ops,
+    .n_ops = ARRAY_SIZE(dp_tt_genl_ops),
+};
+
 static struct genl_family *dp_genl_families[] = {
 	&dp_datapath_genl_family,
 	&dp_vport_genl_family,
 	&dp_flow_genl_family,
 	&dp_packet_genl_family,
+	&dp_tt_genl_family,
 };
 
 static void dp_unregister_genl(int n_families)

@@ -5753,6 +5753,20 @@ ofproto_dpif_delete_internal_flow(struct ofproto_dpif *ofproto,
     return 0;
 }
 
+static enum ofperr 
+tt_table_add(const struct ofproto *ofproto_, const struct ofputil_tt_table_mod *mod)
+{
+    int i;
+    struct ofproto_dpif *ofproto = ofproto_dpif_cast(ofproto_);
+    for (i = 0; i < mod->tt_table_size; ++i) {
+		struct dpif_tt_flow tt_flow;
+		tt_flow.flow_id = mod->tt_table[i].flow_id;
+        tt_flow.cycle = mod->tt_table[i].cycle;
+        dpif_tt_table_add(ofproto->backer->dpif, &tt_flow);
+    }
+	return 0;
+}
+
 const struct ofproto_class ofproto_dpif_class = {
     init,
     enumerate_types,
@@ -5849,4 +5863,5 @@ const struct ofproto_class ofproto_dpif_class = {
     group_modify,               /* group_modify */
     group_get_stats,            /* group_get_stats */
     get_datapath_version,       /* get_datapath_version */
+	tt_table_add,				/* install a tt table */
 };

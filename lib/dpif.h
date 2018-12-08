@@ -857,6 +857,15 @@ int dpif_queue_to_priority(const struct dpif *, uint32_t queue_id,
 
 char *dpif_get_dp_version(const struct dpif *);
 bool dpif_supports_tnl_push_pop(const struct dpif *);
+
+/* tt */
+struct dpif_tt_flow {
+    uint16_t flow_id;  
+    uint32_t cycle;    
+};
+
+void dpif_tt_table_add(struct dpif *, struct dpif_tt_flow *tt_flow);
+
 #ifdef  __cplusplus
 }
 #endif

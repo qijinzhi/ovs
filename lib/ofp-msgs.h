@@ -443,6 +443,13 @@ enum ofpraw {
 
     /* NXT 1.0+ (26): struct nx_tlv_table_reply, struct nx_tlv_map[]. */
     OFPRAW_NXT_TLV_TABLE_REPLY,
+
+/* Tsinghua extension messages. 
+ * 
+ * the real time extension of time triggered technology. */
+	
+	/* TXT 1.0+ (1): void. */
+	OFPRAW_TXT_TT_TABLE_MOD,
 };
 
 /* Decoding messages into OFPRAW_* values. */
@@ -662,6 +669,9 @@ enum ofptype {
     OFPTYPE_FLOW_MONITOR_CANCEL,        /* OFPRAW_NXT_FLOW_MONITOR_CANCEL. */
     OFPTYPE_FLOW_MONITOR_PAUSED,        /* OFPRAW_NXT_FLOW_MONITOR_PAUSED. */
     OFPTYPE_FLOW_MONITOR_RESUMED,       /* OFPRAW_NXT_FLOW_MONITOR_RESUMED. */
+	
+	/* Tsinghua extensions. */
+	OFPTYPE_TXT_TT_TABLE_MOD,            /* OFPRAW_TXT_TT_TABLE_MOD. */
 };
 
 /* Decoding messages into OFPTYPE_* values. */

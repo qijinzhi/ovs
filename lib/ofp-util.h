@@ -29,6 +29,7 @@
 #include "netdev.h"
 #include "openflow/netronome-ext.h"
 #include "openflow/nicira-ext.h"
+#include "openflow/tsinghua-ext.h"
 #include "openvswitch/types.h"
 #include "type-props.h"
 
@@ -1327,5 +1328,13 @@ struct ofpbuf *ofputil_encode_requestforward(
 enum ofperr ofputil_decode_requestforward(const struct ofp_header *,
                                           struct ofputil_requestforward *);
 void ofputil_destroy_requestforward(struct ofputil_requestforward *);
+
+struct ofputil_tt_table_mod {
+	uint16_t command;
+    uint16_t tt_table_size;
+	struct tx_tt_flow *tt_table;
+};
+
+enum ofperr ofputil_decode_tt_table_mod(const struct ofp_header *oh, struct ofputil_tt_table_mod *ttm);
 
 #endif /* ofp-util.h */
