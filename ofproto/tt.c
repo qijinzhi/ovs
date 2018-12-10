@@ -16,7 +16,9 @@
  * limitations under the License.
  */
 
+#include <config.h>
 #include "tt.h"
+
 
 enum ofperr 
 tt_table_mod(struct ofconn *ofconn, struct ofputil_tt_table_mod *ttm)

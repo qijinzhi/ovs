@@ -9,7 +9,8 @@ openflowinclude_HEADERS = \
 	include/openflow/openflow-1.4.h \
 	include/openflow/openflow-1.5.h \
 	include/openflow/openflow-common.h \
-	include/openflow/openflow.h
+	include/openflow/openflow.h\
+	include/openflow/tsinghua-ext.h
 
 if HAVE_PYTHON
 SUFFIXES += .h .hstamp

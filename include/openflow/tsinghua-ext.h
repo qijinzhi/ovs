@@ -41,15 +41,18 @@ enum tx_tt_table_mod_command {
 
 /* tt table item */
 struct tx_tt_flow {
-	uint16_t flow_id;  
-    uint32_t cycle;    
+	ovs_be16 flow_id;
+	ovs_be16 pad;
+    ovs_be32 cycle;
 };
+
+#define MAX_TT_TABLE_SIZE 1024
 
 /* tt table mod (controller -> datapath). */
 struct tx_tt_table_mod {
-	uint16_t command;
-    uint16_t tt_table_size;
-	struct tx_tt_flow *tt_table;
+	ovs_be16 command;
+    ovs_be16 tt_table_size;
+	struct tx_tt_flow tt_table[MAX_TT_TABLE_SIZE];
 };
 
 #endif /* openflow/tsinghua-ext.h */

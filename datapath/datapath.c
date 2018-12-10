@@ -61,6 +61,7 @@
 #include "vlan.h"
 #include "vport-internal_dev.h"
 #include "vport-netdev.h"
+#include "flow-tt.h"
 
 int ovs_net_id __read_mostly;
 EXPORT_SYMBOL_GPL(ovs_net_id);
@@ -68,6 +69,7 @@ EXPORT_SYMBOL_GPL(ovs_net_id);
 static struct genl_family dp_packet_genl_family;
 static struct genl_family dp_flow_genl_family;
 static struct genl_family dp_datapath_genl_family;
+static struct genl_family dp_tt_genl_family;
 
 static const struct nla_policy flow_policy[];
 
@@ -2216,7 +2218,7 @@ struct genl_family dp_vport_genl_family = {
 static int ovs_tt_cmd_add(struct sk_buff *skb, struct genl_info *info)
 {
     struct sk_buff *reply;
-    struct thu_tt_flow tt_flow;
+    struct tt_flow tt_flow;
     struct nlattr **a = info->attrs;
     
     if (!a[OVS_TT_ATTR_FLOW_ID] || !a[OVS_TT_ATTR_CYCLE])
@@ -2224,7 +2226,7 @@ static int ovs_tt_cmd_add(struct sk_buff *skb, struct genl_info *info)
     
     tt_flow.flow_id = nla_data(a[OVS_TT_ATTR_FLOW_ID]);
     tt_flow.cycle = nla_data(a[OVS_TT_ATTR_CYCLE]);
-    printk(KERN_CRLT "kernel: I have receive the tt flows!\n");
+    printk(KERN_CRIT "kernel: I have receive the tt flows!\n");
 }
 
 static const struct nla_policy tt_policy[] = {
@@ -2235,7 +2237,7 @@ static const struct nla_policy tt_policy[] = {
 static struct genl_ops dp_tt_genl_ops[] = {
     {	.cmd = OVS_TT_CMD_ADD,
         .policy = tt_policy,
-     	.soit = ovs_tt_cmd_add,
+     	.doit = ovs_tt_cmd_add,
     },
 };
 
