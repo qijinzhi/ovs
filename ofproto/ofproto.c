@@ -6984,7 +6984,7 @@ handle_bundle_control(struct ofconn *ofconn, const struct ofp_header *oh)
     reply.bundle_id = bctrl.bundle_id;
 
     switch (bctrl.type) {
-        case OFPBCT_OPEN_REQUEST:
+    case OFPBCT_OPEN_REQUEST:
         error = ofp_bundle_open(ofconn, bctrl.bundle_id, bctrl.flags);
         reply.type = OFPBCT_OPEN_REPLY;
         break;
@@ -7105,6 +7105,16 @@ handle_tlv_table_request(struct ofconn *ofconn, const struct ofp_header *oh)
     ofputil_uninit_tlv_table(&ttr.mappings);
 
     ofconn_send_reply(ofconn, b);
+    return 0;
+}
+
+static enum ofperr
+handle_tt_flow_mod(/*struct ofconn *ofconn, const struct ofp_header *oh*/)
+{
+    /* Test for recv frame by chen weihang */
+    static struct vlog_rate_limit rl = VLOG_RATE_LIMIT_INIT(1, 5);
+    VLOG_INFO_RL(&rl, "TT mod msg received!");
+
     return 0;
 }
 
@@ -7257,6 +7267,10 @@ handle_openflow__(struct ofconn *ofconn, const struct ofpbuf *msg)
 
     case OFPTYPE_NXT_TLV_TABLE_REQUEST:
         return handle_tlv_table_request(ofconn, oh);
+
+        /* TT etension */
+    case OFPTYPE_ONF_TT_FLOW_MOD:
+        return handle_tt_flow_mod(/*ofconn, oh*/);
 
     case OFPTYPE_HELLO:
     case OFPTYPE_ERROR:
