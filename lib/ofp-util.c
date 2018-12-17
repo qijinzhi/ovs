@@ -9400,6 +9400,7 @@ ofputil_is_bundlable(enum ofptype type)
     case OFPTYPE_REQUESTFORWARD:
     case OFPTYPE_NXT_TLV_TABLE_REQUEST:
     case OFPTYPE_NXT_TLV_TABLE_REPLY:
+    case OFPTYPE_ONF_TT_FLOW_MOD:
         break;
     }
 

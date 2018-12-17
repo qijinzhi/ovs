@@ -1415,6 +1415,7 @@ is_admitted_msg(const struct ofpbuf *b)
     case OFPTYPE_NXT_TLV_TABLE_MOD:
     case OFPTYPE_NXT_TLV_TABLE_REQUEST:
     case OFPTYPE_NXT_TLV_TABLE_REPLY:
+    case OFPTYPE_ONF_TT_FLOW_MOD:
     default:
         return true;
     }

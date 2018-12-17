@@ -22,6 +22,7 @@
 #include "hmap.h"
 #include "ofpbuf.h"
 #include "openflow/nicira-ext.h"
+#include "openflow/onf-tt-ext.h"
 #include "openflow/openflow.h"
 #include "ovs-thread.h"
 #include "openvswitch/vlog.h"
@@ -159,7 +160,14 @@ ofphdrs_decode(struct ofphdrs *hdrs,
 
         ovh = (const struct ofp_vendor_header *) oh;
         hdrs->vendor = ntohl(ovh->vendor);
-        if (hdrs->vendor == NX_VENDOR_ID) {
+        if (hdrs->vendor == ONF_VENDOR_ID) {
+            const struct onf_exp_header *oeh;
+            if (length < sizeof *oeh) {
+                return OFPERR_OFPBRC_BAD_LEN;
+            }
+            oeh = (const struct onf_exp_header *) oh;
+            hdrs->subtype = ntohl(oeh->subtype);
+        } else if (hdrs->vendor == NX_VENDOR_ID) {
             /* Get Nicira message subtype (NXT_*). */
             const struct nicira_header *nh;
 
