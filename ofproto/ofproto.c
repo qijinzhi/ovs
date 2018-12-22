@@ -7109,6 +7109,16 @@ handle_tlv_table_request(struct ofconn *ofconn, const struct ofp_header *oh)
 }
 
 static enum ofperr
+handle_tt_flow_ctrl(/*struct ofconn *ofconn, const struct ofp_header *oh*/)
+{
+    /* Test for recv frame by chen weihang */
+    static struct vlog_rate_limit rl = VLOG_RATE_LIMIT_INIT(1, 5);
+    VLOG_INFO_RL(&rl, "TT ctrl msg received!");
+
+    return 0;
+}
+
+static enum ofperr
 handle_tt_flow_mod(/*struct ofconn *ofconn, const struct ofp_header *oh*/)
 {
     /* Test for recv frame by chen weihang */
@@ -7269,6 +7279,9 @@ handle_openflow__(struct ofconn *ofconn, const struct ofpbuf *msg)
         return handle_tlv_table_request(ofconn, oh);
 
         /* TT etension */
+    case OFPTYPE_ONF_TT_FLOW_CONTROL:
+        return handle_tt_flow_ctrl(/*ofconn, oh*/);
+
     case OFPTYPE_ONF_TT_FLOW_MOD:
         return handle_tt_flow_mod(/*ofconn, oh*/);
 

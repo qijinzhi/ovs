@@ -27,6 +27,7 @@
 /* Tsinghua experiment Time-Triggered mechanism extension.
  *
  */
+
 /* Experiment extension message. */
 struct onf_exp_header {
     struct ofp_header header; 
@@ -35,14 +36,39 @@ struct onf_exp_header {
 };
 OFP_ASSERT(sizeof(struct onf_exp_header) == 16);
 
+
+enum onf_tt_flow_ctrl_command {
+    ONF_TFCC_ADD = 0, /* New flow. */
+    ONF_TFCC_DELETE = 1, /* Delete all matching flows. */
+};
+
+
+/* TT flow control message type */
+enum onf_tt_flow_ctrl_type {
+    ONF_TFCT_DOWNLOAD_STRAT_REQUEST	= 0,
+    ONF_TFCT_DOWNLOAD_START_REPLY	= 1,
+    ONF_TFCT_DOWNLOAD_END_REQUEST	= 2,
+    ONF_TFCT_DOWNLOAD_END_REPLY	= 3,
+};
+
+
+/* Message structure for ONF_ET_TT_FLOW_CONTROL. */
+struct onf_tt_flow_ctrl {
+    uint8_t		command; /* One of ONF_TFCC_*. */
+    uint8_t		type; /* ONF_TFCT_*. */
+    uint8_t		pad[2];
+    ovs_be32	flow_number; /* The number of flow. */
+};
+OFP_ASSERT(sizeof(struct onf_tt_flow_ctrl) == 8);
+
+
 /* Message structure for ONF_ET_TT_FLOW_MDOD. */
 struct onf_tt_flow_mod {
-    /* Command type */
-    uint8_t command; /* One of OFPFC_* */
     /* Entry field */
     uint8_t port; /* The entry related port. */
     uint8_t etype; /* Send entry or receive entry. */
     uint8_t flow_id; /* The identify of a flow. */
+    uint8_t pad;
     ovs_be32 scheduled_time; /* The scheduled time that the flow packet is received or sent. */
     ovs_be32 period; /* The scheduling period. */
     ovs_be32 buffer_id; /* Buffered packet to apply to. */

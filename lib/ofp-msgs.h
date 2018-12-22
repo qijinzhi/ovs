@@ -448,7 +448,10 @@ enum ofpraw {
  * 
  * the real time extension of time triggered technology. */
 
-    /* ONF 1.0+ (2400): struct onf_tt_flow_mod. */
+    /* ONF 1.0+ (2400): struct onf_tt_flow_ctrl. */
+    OFPRAW_ONF_TT_FLOW_CONTROL,
+
+    /* ONF 1.0+ (2401): struct onf_tt_flow_mod. */
     OFPRAW_ONF_TT_FLOW_MOD,
 };
 
@@ -671,6 +674,7 @@ enum ofptype {
     OFPTYPE_FLOW_MONITOR_RESUMED,       /* OFPRAW_NXT_FLOW_MONITOR_RESUMED. */
 
     /* Tsinghua extensions. */
+    OFPTYPE_ONF_TT_FLOW_CONTROL,        /* OFPRAW_ONF_TT_FLOW_CONTROL. */
     OFPTYPE_ONF_TT_FLOW_MOD,            /* OFPRAW_ONF_TT_FLOW_MOD. */
 };
 
