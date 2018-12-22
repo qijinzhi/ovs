@@ -26,7 +26,13 @@
 
 /* Tsinghua experiment Time-Triggered mechanism extension.
  *
+ * +---------+---------------+--------+
+ * | version | ONF_VENDOR_ID | length |   
+ * +---------+---------------+--------+
+ * |     struct onf_exp_header        |
+ * +----------------------------------+
  */
+ 
 /* Experiment extension message. */
 struct onf_exp_header {
     struct ofp_header header; 
@@ -34,6 +40,13 @@ struct onf_exp_header {
     ovs_be32 subtype;   /* See the TXT numbers in ofp-mags.h. */
 };
 OFP_ASSERT(sizeof(struct onf_exp_header) == 16);
+
+
+/* TT table commands 
+enum tx_tt_table_mod_command {
+	OFPFC_ADD,
+};
+*/
 
 /* Message structure for ONF_ET_TT_FLOW_MDOD. */
 struct onf_tt_flow_mod {
@@ -50,4 +63,4 @@ struct onf_tt_flow_mod {
 };
 OFP_ASSERT(sizeof(struct onf_tt_flow_mod) == 20);
 
-#endif
+#endif /* openflow/onf-tt-ext.h */

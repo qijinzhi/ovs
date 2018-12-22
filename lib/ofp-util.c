@@ -9841,3 +9841,31 @@ ofputil_encode_get_async_config(const struct ofp_header *oh,
 
     return buf;
 }
+
+
+enum ofperr 
+ofputil_decode_tt_table_mod(const struct ofp_header *oh,
+							struct ofputil_tt_table_mod *ttm)
+{
+	struct onf_tt_flow_mod *tx_ttm;
+	struct ofpbuf msg;
+    
+    /* get the struct tx_tt_table_mod in the openflow message 
+     * sended from the SDN controller.
+     */
+    ofpbuf_use_const(&msg, oh, ntohs(oh->length));
+	ofpraw_pull_assert(&msg);
+	
+	tx_ttm = ofpbuf_pull(&msg, sizeof *tx_ttm);
+    /* tx_tt_table_mod --> ofputil_tt_table_mod */
+	ttm->command = tx_ttm->command;
+	ttm->port = tx_ttm->port;
+	ttm->etype = tx_ttm->etype;
+	ttm->flow_id = tx_ttm->flow_id;
+	ttm->scheduled_time = ntohs(tx_ttm->scheduled_time);
+	ttm->period = ntohs(tx_ttm->period);
+	ttm->buffer_id = ntohs(tx_ttm->buffer_id);
+	ttm->pkt_size = ntohs(tx_ttm->pkt_size);
+	
+	return 0;
+}

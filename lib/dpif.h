@@ -857,6 +857,22 @@ int dpif_queue_to_priority(const struct dpif *, uint32_t queue_id,
 
 char *dpif_get_dp_version(const struct dpif *);
 bool dpif_supports_tnl_push_pop(const struct dpif *);
+
+/* tt */
+struct dpif_tt_flow {
+	/* Command type */
+    uint8_t command; /* One of OFPFC_* */
+    /* Entry field */
+    uint8_t port; /* The entry related port. */
+    uint8_t etype; /* Send entry or receive entry. */
+    uint8_t flow_id; /* The identify of a flow. */
+    ovs_be32 scheduled_time; /* The scheduled time that the flow packet is received or sent. */
+    ovs_be32 period; /* The scheduling period. */
+    ovs_be32 buffer_id; /* Buffered packet to apply to. */
+    ovs_be32 pkt_size; /* The flow packet size. */
+};
+
+void dpif_tt_table_add(struct dpif *, struct dpif_tt_flow *tt_flow);
 #ifdef  __cplusplus
 }
 #endif

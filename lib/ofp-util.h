@@ -29,6 +29,7 @@
 #include "netdev.h"
 #include "openflow/netronome-ext.h"
 #include "openflow/nicira-ext.h"
+#include "openflow/onf-tt-ext.h"
 #include "openvswitch/types.h"
 #include "type-props.h"
 
@@ -1328,4 +1329,20 @@ enum ofperr ofputil_decode_requestforward(const struct ofp_header *,
                                           struct ofputil_requestforward *);
 void ofputil_destroy_requestforward(struct ofputil_requestforward *);
 
+
+struct ofputil_tt_table_mod {
+    /* Command type */
+    uint8_t command; /* One of OFPFC_* */
+    /* Entry field */
+    uint8_t port; /* The entry related port. */
+    uint8_t etype; /* Send entry or receive entry. */
+    uint8_t flow_id; /* The identify of a flow. */
+    ovs_be32 scheduled_time; /* The scheduled time that the flow packet is received or sent. */
+    ovs_be32 period; /* The scheduling period. */
+    ovs_be32 buffer_id; /* Buffered packet to apply to. */
+    ovs_be32 pkt_size; /* The flow packet size. */
+};
+
+enum ofperr ofputil_decode_tt_table_mod(const struct ofp_header *oh, 
+										struct ofputil_tt_table_mod *ttm);
 #endif /* ofp-util.h */

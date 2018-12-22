@@ -2342,6 +2342,33 @@ dpif_netlink_ct_flush(struct dpif *dpif OVS_UNUSED, const uint16_t *zone)
 }
 #endif
 
+static int
+dpif_netlink_tt_table_add(struct dpif_tt_flow *tt_flow)
+{
+	VLOG_WARN("Pass dpif to netlink success!");
+	tt_flow->port = 0;
+	/*
+    struct dpif_netlink_tt tt_request, tt;
+    struct ofpbuf *buf;
+    int error;
+    
+    dpif_netlink_tt_init(&tt_request);
+    tt_request.command = tt_flow->command;
+    tt_request.port = tt_flow->port;
+    tt_request.etype = tt_flow->etype;
+	tt_request.flow_id = tt_flow->flow_id;
+	tt_request.scheduled_time = tt_flow->scheduled_time;
+	tt_request.period = tt_flow->period;
+	tt_request.buffer_id = tt_flow->buffer_id;
+	tt_request.pkt_size = tt_flow->pkt_size;
+    error = dpif_netlink_tt_transact(&tt_request, &tt, &buf);
+    if (error) {
+        return error;
+    }
+	*/
+    return 0;
+}
+
 const struct dpif_class dpif_netlink_class = {
     "system",
     NULL,                       /* init */
@@ -2393,6 +2420,7 @@ const struct dpif_class dpif_netlink_class = {
     NULL,                       /* ct_dump_done */
     NULL,                       /* ct_flush */
 #endif
+	dpif_netlink_tt_table_add,  /* tt_table_add*/
 };
 
 static int
