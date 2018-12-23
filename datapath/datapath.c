@@ -68,6 +68,7 @@ EXPORT_SYMBOL_GPL(ovs_net_id);
 static struct genl_family dp_packet_genl_family;
 static struct genl_family dp_flow_genl_family;
 static struct genl_family dp_datapath_genl_family;
+static struct genl_family dp_tt_genl_family;
 
 static const struct nla_policy flow_policy[];
 
@@ -81,6 +82,10 @@ static struct genl_multicast_group ovs_dp_datapath_multicast_group = {
 
 struct genl_multicast_group ovs_dp_vport_multicast_group = {
 	.name = OVS_VPORT_MCGROUP
+};
+
+static struct genl_multicast_group ovs_dp_tt_multicast_group = {
+	.name = OVS_TT_MACGROUP
 };
 
 /* Check if need to build a reply message.
@@ -2212,11 +2217,60 @@ struct genl_family dp_vport_genl_family = {
 	.n_mcgrps = 1,
 };
 
+/* tt */
+static const struct nla_policy tt_policy[] = {
+    [OVS_TT_ATTR_PORT] = { .type = NLA_U8 },
+    [OVS_TT_ATTR_ETYPE] = { .type = NLA_U8 },
+	[OVS_TT_ATTR_FLOW_ID] = { .type = NLA_U8 },
+	[OVS_TT_ATTR_SCHEDULED_TIME] = { .type = NLA_U32 },
+	[OVS_TT_ATTR_PERIOD] = { .type = NLA_U32 },
+	[OVS_TT_ATTR_BUFFER_ID] = { .type = NLA_U32 },
+	[OVS_TT_ATTR_PKT_SIZE] = { .type = NLA_U32 },
+};
+
+static int ovs_tt_cmd_add(struct sk_buff *skb, struct genl_info *info)
+{
+    struct sk_buff *reply;
+    
+    struct nlattr **a = info->attrs;
+    
+    if (!a[OVS_TT_ATTR_FLOW_ID])
+        return -1;
+    
+	/*
+	struct thu_tt_flow tt_flow;
+    tt_flow.flow_id = nla_data(a[OVS_TT_ATTR_FLOW_ID]);
+	*/
+	//VLOG_WARN("kernel: I have receive the tt flows!\n");
+}
+
+
+static struct genl_ops dp_tt_genl_ops[] = {
+    {	.cmd = OVS_TT_CMD_ADD,
+        .policy = tt_policy,
+     	.soit = ovs_tt_cmd_add,
+    },
+};
+
+static struct genl_family dp_tt_genl_family = {
+    .id = GENL_ID_GENERATE,
+    .hdrsize = 0,
+    .name = OVS_TT_FAMILY,
+    .version = OVS_TT_VERSION,
+    .netnsok = true,
+    .parallel_ops = false,
+    .ops = dp_tt_genl_ops,
+    .n_ops = ARRAY_SIZE(dp_tt_genl_ops),
+	.mcgrps = &ovs_dp_tt_multicast_group,
+	.n_mcgrps = 1,
+};
+
 static struct genl_family *dp_genl_families[] = {
 	&dp_datapath_genl_family,
 	&dp_vport_genl_family,
 	&dp_flow_genl_family,
 	&dp_packet_genl_family,
+	&dp_tt_genl_family,
 };
 
 static void dp_unregister_genl(int n_families)

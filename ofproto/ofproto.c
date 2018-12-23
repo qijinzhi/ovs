@@ -7126,7 +7126,7 @@ handle_tt_flow_mod(struct ofconn *ofconn, const struct ofp_header *oh)
     /* Test for recv frame by chen weihang */
     static struct vlog_rate_limit rl = VLOG_RATE_LIMIT_INIT(1, 5);
     VLOG_INFO_RL(&rl, "TT mod msg received!\n");
-	
+	VLOG_INFO("TT netlink family add success!\n");
 	
 	struct ofputil_tt_table_mod ttm;
     enum ofperr error;
