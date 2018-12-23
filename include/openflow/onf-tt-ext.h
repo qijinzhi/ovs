@@ -45,7 +45,7 @@ enum onf_tt_flow_ctrl_command {
 
 /* TT flow control message type */
 enum onf_tt_flow_ctrl_type {
-    ONF_TFCT_DOWNLOAD_STRAT_REQUEST	= 0,
+    ONF_TFCT_DOWNLOAD_START_REQUEST	= 0,
     ONF_TFCT_DOWNLOAD_START_REPLY	= 1,
     ONF_TFCT_DOWNLOAD_END_REQUEST	= 2,
     ONF_TFCT_DOWNLOAD_END_REPLY	= 3,

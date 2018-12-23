@@ -683,11 +683,18 @@ ofpraw_put__(enum ofpraw raw, uint8_t version, ovs_be32 xid,
     oh->xid = xid;
 
     if (hdrs->type == OFPT_VENDOR) {
-        struct nicira_header *nh = buf->header;
-
-        ovs_assert(hdrs->vendor == NX_VENDOR_ID);
-        nh->vendor = htonl(hdrs->vendor);
-        nh->subtype = htonl(hdrs->subtype);
+        if (hdrs->vendor == ONF_VENDOR_ID) {
+            struct onf_exp_header *oeh = buf->header;
+            oeh->vendor = htonl(hdrs->vendor);
+            oeh->subtype = htonl(hdrs->subtype);
+        } else if (hdrs->vendor == NX_VENDOR_ID) {
+            struct nicira_header *nh = buf->header;
+            nh->vendor = htonl(hdrs->vendor);
+            nh->subtype = htonl(hdrs->subtype);
+        } else {
+            log_bad_vendor(hdrs->vendor);
+        }
+        
     } else if (version == OFP10_VERSION
                && (hdrs->type == OFPT10_STATS_REQUEST ||
                    hdrs->type == OFPT10_STATS_REPLY)) {

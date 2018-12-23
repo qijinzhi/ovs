@@ -39,6 +39,7 @@
 #include "ofp-util.h"
 #include "ofpbuf.h"
 #include "openflow/netronome-ext.h"
+#include "openflow/onf-tt-ext.h"
 #include "packets.h"
 #include "random.h"
 #include "tun-metadata.h"
@@ -9839,6 +9840,43 @@ ofputil_encode_get_async_config(const struct ofp_header *oh,
             ofputil_get_async_reply(buf, master[type], slave[type], type);
         }
     }
+
+    return buf;
+}
+
+enum ofperr
+ofputil_decode_tt_flow_ctrl(const struct ofp_header *oh,
+                            struct ofputil_tt_flow_ctrl_msg *msg)
+{
+    struct ofpbuf b;
+    enum ofpraw raw;
+    const struct onf_tt_flow_ctrl *m;
+
+    ofpbuf_use_const(&b, oh, ntohs(oh->length));
+    raw = ofpraw_pull_assert(&b);
+    ovs_assert(raw == OFPRAW_ONF_TT_FLOW_CONTROL);
+
+    m = b.msg;
+    msg->command = m->command;
+    msg->type = m->type;
+    msg->flow_number = ntohl(m->flow_number);
+
+    return 0;
+}
+
+struct ofpbuf *
+ofputil_encode_tt_flow_ctrl_reply(const struct ofp_header *oh,
+                                  struct ofputil_tt_flow_ctrl_msg *msg)
+{
+    struct ofpbuf *buf;
+    struct onf_tt_flow_ctrl *m;
+
+    buf = ofpraw_alloc_reply(OFPRAW_ONF_TT_FLOW_CONTROL, oh, 0);
+    m = ofpbuf_put_zeros(buf, sizeof *m);
+
+    m->command = msg->command;
+    m->type = msg->type;
+    m->flow_number = htons(msg->flow_number);
 
     return buf;
 }

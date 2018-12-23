@@ -1328,4 +1328,28 @@ enum ofperr ofputil_decode_requestforward(const struct ofp_header *,
                                           struct ofputil_requestforward *);
 void ofputil_destroy_requestforward(struct ofputil_requestforward *);
 
+struct ofputil_tt_flow_ctrl_msg {
+    uint8_t     command;
+    uint8_t     type;
+    uint8_t     pad[2];
+    uint32_t    flow_number;
+};
+
+struct ofputil_tt_flow_mod_msg {
+    uint8_t     port;
+    uint8_t     etype;
+    uint8_t     flow_id;
+    uint8_t     pad;
+    uint32_t    scheduled_time;
+    uint32_t    period;
+    uint32_t    buffer_id;
+    uint32_t    pkt_size;
+};
+
+enum ofperr ofputil_decode_tt_flow_ctrl(const struct ofp_header *,
+                                        struct ofputil_tt_flow_ctrl_msg *);
+
+struct ofpbuf *ofputil_encode_tt_flow_ctrl_reply(const struct ofp_header *,
+                                                 struct ofputil_tt_flow_ctrl_msg *);
+
 #endif /* ofp-util.h */
