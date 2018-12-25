@@ -9876,7 +9876,7 @@ ofputil_encode_tt_flow_ctrl_reply(const struct ofp_header *oh,
 
     m->command = msg->command;
     m->type = msg->type;
-    m->flow_number = htons(msg->flow_number);
+    m->flow_number = htonl(msg->flow_number);
 
     return buf;
 }
