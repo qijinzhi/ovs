@@ -54,10 +54,10 @@ enum onf_tt_flow_ctrl_type {
 
 /* Message structure for ONF_ET_TT_FLOW_CONTROL. */
 struct onf_tt_flow_ctrl {
-    uint8_t		command; /* One of ONF_TFCC_*. */
-    uint8_t		type; /* ONF_TFCT_*. */
-    uint8_t		pad[2];
-    ovs_be32	flow_number; /* The number of flow. */
+    uint8_t command; /* One of ONF_TFCC_*. */
+    uint8_t	type; /* ONF_TFCT_*. */
+    uint8_t	pad[2];
+    ovs_be32 flow_number; /* The number of flow. */
 };
 OFP_ASSERT(sizeof(struct onf_tt_flow_ctrl) == 8);
 
