@@ -1729,7 +1729,33 @@ dpif_supports_tnl_push_pop(const struct dpif *dpif)
     return dpif_is_netdev(dpif);
 }
 
-void dpif_tt_table_add(struct dpif *dpif, struct dpif_tt_flow *tt_flow)
+void
+dpif_tt_operate(struct dpif *dpif, struct dpif_tt_op **ops, size_t n_ops)
 {
-    dpif->dpif_class->tt_table_add(tt_flow);
+    dpif->dpif_class->tt_operate(dpif, ops, n_ops);
+}
+
+int
+dpif_tt_flow_put(struct dpif *dpif, 
+                 uint8_t port, uint8_t etype, uint8_t flow_id, 
+                 ovs_be32 scheduled_time, ovs_be32 period, 
+                 ovs_be32 buffer_id, ovs_be32 pkt_size)
+{
+    struct dpif_tt_op *opp;
+    struct dpif_tt_op op;
+    
+    op.type = DPIF_OP_TT_FLOW_PUT;
+    op.u.tt_flow_put.port = port;
+    op.u.tt_flow_put.etype = etype;
+    op.u.tt_flow_put.flow_id = flow_id;
+    op.u.tt_flow_put.scheduled_time = scheduled_time;
+    op.u.tt_flow_put.period = period;
+    op.u.tt_flow_put.buffer_id = buffer_id;
+    op.u.tt_flow_put.pkt_size = pkt_size;
+    
+    opp = &op;
+	
+    dpif_tt_operate(dpif, &opp, 1);
+    
+    return op.error;
 }

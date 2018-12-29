@@ -420,8 +420,8 @@ struct dpif_class {
      * only deletes connections in '*zone'. */
     int (*ct_flush)(struct dpif *, const uint16_t *zone);
 	
-	/* dpif_netlink_tt_table_add */
-	int (*tt_table_add)(struct dpif_tt_flow *tt_flow);
+	/* dpif_netlink_tt_operate */
+	void (*tt_operate)(struct dpif *dpif, struct dpif_tt_op **ops, size_t n_ops);
 };
 
 extern const struct dpif_class dpif_netlink_class;

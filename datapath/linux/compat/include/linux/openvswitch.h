@@ -781,10 +781,11 @@ enum ovs_action_attr {
 #define OVS_TT_VERSION 0x1
 
 enum ovs_tt_cmd {
-    OVS_TT_CMD_ADD,
-    OVS_TT_CMD_DEL,
-    OVS_TT_CMD_GET,
+    OVS_TT_FLOW_CMD_NEW,
+    OVS_TT_FLOW_CMD_DEL,
+    __OVS_TT_FLOW_CMD_MAX,
 };
+#define OVS_TT_FLOW_CMD_MAX (__OVS_TT_FLOW_CMD_MAX - 1)		
 
 /**
  * enum ovs_tt_attr - attributes for %OVS_TT_* commands
@@ -795,16 +796,16 @@ enum ovs_tt_cmd {
  * payload for %OVS_DP_* commands.
  */
 enum ovs_tt_attr {
-    OVS_TT_ATTR_PORT,
-    OVS_TT_ATTR_ETYPE,
-	OVS_TT_ATTR_FLOW_ID,
-	OVS_TT_ATTR_SCHEDULED_TIME,
-	OVS_TT_ATTR_PERIOD,
-	OVS_TT_ATTR_BUFFER_ID,
-	OVS_TT_ATTR_PKT_SIZE,
-    __OVS_TT_ATTR_MAX
+	OVS_TT_FLOW_ATTR_UNSPEC,
+    OVS_TT_FLOW_ATTR_PORT,
+    OVS_TT_FLOW_ATTR_ETYPE,
+	OVS_TT_FLOW_ATTR_FLOW_ID,
+	OVS_TT_FLOW_ATTR_SCHEDULED_TIME,
+	OVS_TT_FLOW_ATTR_PERIOD,
+	OVS_TT_FLOW_ATTR_BUFFER_ID,
+	OVS_TT_FLOW_ATTR_PKT_SIZE,
+    __OVS_TT_FLOW_ATTR_MAX,
 };
-
-#define OVS_TT_ATTR_MAX (__OVS_TT_ATTR_MAX - 1)
+#define OVS_TT_FLOW_ATTR_MAX (__OVS_TT_FLOW_ATTR_MAX - 1)
 
 #endif /* _LINUX_OPENVSWITCH_H */

@@ -1793,7 +1793,7 @@ struct ofproto_class {
 /* ##-------------- ##*/
 /* ## tt extension ## */
 /* ##-------------- ##*/
-	enum ofperr (*tt_table_add)(const struct ofproto *, 
+	enum ofperr (*tt_flow_add)(const struct ofproto *, 
 								const struct ofputil_tt_table_mod *);
 };
 

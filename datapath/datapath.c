@@ -2219,46 +2219,77 @@ struct genl_family dp_vport_genl_family = {
 
 /* tt */
 static const struct nla_policy tt_policy[] = {
-    [OVS_TT_ATTR_PORT] = { .type = NLA_U8 },
-    [OVS_TT_ATTR_ETYPE] = { .type = NLA_U8 },
-	[OVS_TT_ATTR_FLOW_ID] = { .type = NLA_U8 },
-	[OVS_TT_ATTR_SCHEDULED_TIME] = { .type = NLA_U32 },
-	[OVS_TT_ATTR_PERIOD] = { .type = NLA_U32 },
-	[OVS_TT_ATTR_BUFFER_ID] = { .type = NLA_U32 },
-	[OVS_TT_ATTR_PKT_SIZE] = { .type = NLA_U32 },
+    [OVS_TT_FLOW_ATTR_PORT] = { .type = NLA_U8 },
+    [OVS_TT_FLOW_ATTR_ETYPE] = { .type = NLA_U8 },
+	[OVS_TT_FLOW_ATTR_FLOW_ID] = { .type = NLA_U8 },
+	[OVS_TT_FLOW_ATTR_SCHEDULED_TIME] = { .type = NLA_U32 },
+	[OVS_TT_FLOW_ATTR_PERIOD] = { .type = NLA_U32 },
+	[OVS_TT_FLOW_ATTR_BUFFER_ID] = { .type = NLA_U32 },
+	[OVS_TT_FLOW_ATTR_PKT_SIZE] = { .type = NLA_U32 },
 };
 
 static int ovs_tt_cmd_add(struct sk_buff *skb, struct genl_info *info)
 {
-    struct sk_buff *reply;
-    
+	int port;
+	int etype;
+	int flow_id;
+	int scheduled_time;
+	int period;
+	int buffer_id;
+	int pkt_size;
     struct nlattr **a = info->attrs;
     
-    if (!a[OVS_TT_ATTR_FLOW_ID])
-        return -1;
-    
-	/*
-	struct thu_tt_flow tt_flow;
-    tt_flow.flow_id = nla_data(a[OVS_TT_ATTR_FLOW_ID]);
-	*/
-	//VLOG_WARN("kernel: I have receive the tt flows!\n");
+	pr_info("ovs_tt_cmd_add begin!\n");
+	
+	if (a[OVS_TT_FLOW_ATTR_PORT]) {
+		port = *(int *)nla_data(a[OVS_TT_FLOW_ATTR_PORT]);
+		pr_info("I get the OVS_TT_FLOW_ATTR_PORT: %d\n", port);
+	}
+	
+	if (a[OVS_TT_FLOW_ATTR_ETYPE]) {
+		etype = *(int *)nla_data(a[OVS_TT_FLOW_ATTR_ETYPE]);
+		pr_info("I get the OVS_TT_FLOW_ATTR_PORT: %d\n", etype);
+	}
+	if (a[OVS_TT_FLOW_ATTR_FLOW_ID]) {
+		flow_id = *(int *)nla_data(a[OVS_TT_FLOW_ATTR_FLOW_ID]);
+		pr_info("I get the OVS_TT_FLOW_ATTR_FLOW_ID: %d\n", flow_id);
+	}
+	if (a[OVS_TT_FLOW_ATTR_SCHEDULED_TIME]) {
+		scheduled_time = *(int *)nla_data(a[OVS_TT_FLOW_ATTR_SCHEDULED_TIME]);
+		pr_info("I get the OVS_TT_FLOW_ATTR_SCHEDULED_TIME: %d\n", scheduled_time);
+	}
+	if (a[OVS_TT_FLOW_ATTR_PERIOD]) {
+		period = *(int *)nla_data(a[OVS_TT_FLOW_ATTR_PERIOD]);
+		pr_info("I get the OVS_TT_FLOW_ATTR_PERIOD: %d\n", period);
+	}
+	if (a[OVS_TT_FLOW_ATTR_BUFFER_ID]) {
+		buffer_id = *(int *)nla_data(a[OVS_TT_FLOW_ATTR_BUFFER_ID]);
+		pr_info("I get the OVS_TT_FLOW_ATTR_BUFFER_ID: %d\n", buffer_id);
+	}
+	if (a[OVS_TT_FLOW_ATTR_PKT_SIZE]) {
+		pkt_size = *(int *)nla_data(a[OVS_TT_FLOW_ATTR_PKT_SIZE]);
+		pr_info("I get the OVS_TT_FLOW_ATTR_PKT_SIZE: %d\n", pkt_size);
+	}
+	
+	return 0;
 }
 
 
 static struct genl_ops dp_tt_genl_ops[] = {
-    {	.cmd = OVS_TT_CMD_ADD,
+    {	.cmd = OVS_TT_FLOW_CMD_NEW,
         .policy = tt_policy,
-     	.soit = ovs_tt_cmd_add,
+     	.doit = ovs_tt_cmd_add,
     },
 };
 
 static struct genl_family dp_tt_genl_family = {
     .id = GENL_ID_GENERATE,
-    .hdrsize = 0,
+    .hdrsize = sizeof(struct ovs_header),
     .name = OVS_TT_FAMILY,
     .version = OVS_TT_VERSION,
+	.maxattr = OVS_TT_FLOW_ATTR_MAX,
     .netnsok = true,
-    .parallel_ops = false,
+    .parallel_ops = true,
     .ops = dp_tt_genl_ops,
     .n_ops = ARRAY_SIZE(dp_tt_genl_ops),
 	.mcgrps = &ovs_dp_tt_multicast_group,
@@ -2289,8 +2320,11 @@ static int dp_register_genl(void)
 	for (i = 0; i < ARRAY_SIZE(dp_genl_families); i++) {
 
 		err = genl_register_family(dp_genl_families[i]);
-		if (err)
+		if (err) {
+			pr_info("register genl_family %s failed!\n", (dp_genl_families[i])->name);
 			goto error;
+		}
+		pr_info("register genl_family %s successed!\n", (dp_genl_families[i])->name);
 	}
 
 	return 0;

@@ -859,6 +859,37 @@ char *dpif_get_dp_version(const struct dpif *);
 bool dpif_supports_tnl_push_pop(const struct dpif *);
 
 /* tt */
+enum dpif_tt_op_type {
+    DPIF_OP_TT_FLOW_PUT = 1,
+    DPIF_OP_TT_FLOW_DEL,
+    DPIF_OP_TT_FLOW_GET,
+};
+
+struct dpif_tt_flow_put {
+    /* Input. */
+    /* Entry field */
+    uint8_t port; /* The entry related port. */
+    uint8_t etype; /* Send entry or receive entry. */
+    uint8_t flow_id; /* The identify of a flow. */
+    ovs_be32 scheduled_time; /* The scheduled time that the flow packet is received or sent. */
+    ovs_be32 period; /* The scheduling period. */
+    ovs_be32 buffer_id; /* Buffered packet to apply to. */
+    ovs_be32 pkt_size; /* The flow packet size. */
+};
+
+struct dpif_tt_op {
+    enum dpif_tt_op_type type;
+    int error;
+    union {
+        struct dpif_tt_flow_put tt_flow_put;
+		/*
+        struct dpif_tt_flow_del tt_flow_del;
+        struct dpif_execute execute;
+        struct dpif_tt_flow_get tt_flow_get;
+		*/
+    } u;
+};
+
 struct dpif_tt_flow {
 	/* Command type */
     uint8_t command; /* One of OFPFC_* */
@@ -872,7 +903,12 @@ struct dpif_tt_flow {
     ovs_be32 pkt_size; /* The flow packet size. */
 };
 
-void dpif_tt_table_add(struct dpif *, struct dpif_tt_flow *tt_flow);
+int dpif_tt_flow_put(struct dpif *dpif, 
+					 uint8_t port, uint8_t etype, uint8_t flow_id, 
+					 ovs_be32 scheduled_time, ovs_be32 period, 
+					 ovs_be32 buffer_id, ovs_be32 pkt_size);
+void dpif_tt_operate(struct dpif *dpif, struct dpif_tt_op **ops, size_t n_ops);
+
 #ifdef  __cplusplus
 }
 #endif
