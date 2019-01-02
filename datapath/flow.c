@@ -51,7 +51,6 @@
 #include "flow_netlink.h"
 #include "vport.h"
 #include "vlan.h"
-#include "tt.h"
 
 u64 ovs_flow_used_time(unsigned long flow_jiffies)
 {
@@ -678,27 +677,6 @@ static int key_extract(struct sk_buff *skb, struct sw_flow_key *key)
 			}
 		}
 	}
-    else if (eth_p_tt(key->eth.type)) { //加入对标准TT报文的处理
-        printk(KERN_ALERT "DEBUG: tt packet extract  %s %d \n", __FUNCTION__, __LINE__);
-	struct iphdr *nh;
-        skb_set_network_header(skb, skb->mac_len + TT_HLEN); // 设置网络报文头
-        error = check_iphdr(skb);   //检查ip数据报文头
-        if (unlikely(error)) {
-            return error;
-        }
-
-        nh = ip_hdr(skb);
-        if (nh->protocol != IPPROTO_UDP)    //检查UDP报文头
-            return -EINVAL;
-        if (udphdr_ok(skb)) {
-            struct udphdr *udp = udp_hdr(skb);
-            if (!udp_port_is_tt(udp->dest))
-                return -EINVAL;
-        }
-        else {
-            return -EINVAL;
-        }
-    }
 	return 0;
 }
 
