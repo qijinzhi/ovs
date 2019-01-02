@@ -882,16 +882,16 @@ struct dpif_tt_op {
     int error;
     union {
         struct dpif_tt_flow_put tt_flow_put;
-		/*
+        /*
         struct dpif_tt_flow_del tt_flow_del;
         struct dpif_execute execute;
         struct dpif_tt_flow_get tt_flow_get;
-		*/
+        */
     } u;
 };
 
 struct dpif_tt_flow {
-	/* Command type */
+    /* Command type */
     uint8_t command; /* One of OFPFC_* */
     /* Entry field */
     uint8_t port; /* The entry related port. */
@@ -904,9 +904,9 @@ struct dpif_tt_flow {
 };
 
 int dpif_tt_flow_put(struct dpif *dpif, 
-					 uint8_t port, uint8_t etype, uint8_t flow_id, 
-					 ovs_be32 scheduled_time, ovs_be32 period, 
-					 ovs_be32 buffer_id, ovs_be32 pkt_size);
+                     uint8_t port, uint8_t etype, uint8_t flow_id, 
+                     ovs_be32 scheduled_time, ovs_be32 period, 
+                     ovs_be32 buffer_id, ovs_be32 pkt_size);
 void dpif_tt_operate(struct dpif *dpif, struct dpif_tt_op **ops, size_t n_ops);
 
 #ifdef  __cplusplus

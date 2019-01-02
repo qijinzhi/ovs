@@ -7112,12 +7112,12 @@ static enum ofperr
 tt_flow_mod(struct ofconn *ofconn, struct ofputil_tt_table_mod *ttm)
 {
     struct ofproto *ofproto = ofconn_get_ofproto(ofconn);
-	switch (ttm->command) {
-		case OFPFC_ADD:
-			VLOG_INFO("TT mod msg received OFPFC_ADD command!\n");
-			ofproto->ofproto_class->tt_flow_add(ofproto, ttm);
-	}
-	return 0;
+    switch (ttm->command) {
+        case OFPFC_ADD:
+            VLOG_INFO("TT mod msg received OFPFC_ADD command!\n");
+            ofproto->ofproto_class->tt_flow_add(ofproto, ttm);
+    }
+    return 0;
 }
 
 static enum ofperr
@@ -7125,16 +7125,16 @@ handle_tt_flow_mod(struct ofconn *ofconn, const struct ofp_header *oh)
 {
     /* Test for recv frame by chen weihang */
     VLOG_INFO("TT mod msg received!\n");
-	
-	struct ofputil_tt_table_mod ttm;
+    
+    struct ofputil_tt_table_mod ttm;
     enum ofperr error;
     
     error = reject_slave_controller(ofconn);
     if (error) {
         return error;
     }
-	/* get the payload in the openflow message 
-	 * and transform into struct ofputil_tt_table_mod */
+    /* get the payload in the openflow message 
+     * and transform into struct ofputil_tt_table_mod */
     error = ofputil_decode_tt_table_mod(oh, &ttm);
     if (error) {
         return error;
@@ -7142,10 +7142,10 @@ handle_tt_flow_mod(struct ofconn *ofconn, const struct ofp_header *oh)
 
     /* deal with the ofputil_tt_table_mod */
     error = tt_flow_mod(ofconn, &ttm);
-	if (error) {
-	    return error;
-	}
-	
+    if (error) {
+        return error;
+    }
+    
     return 0;
 }
 

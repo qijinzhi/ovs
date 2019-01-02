@@ -53,7 +53,7 @@
  */
 
 struct ovs_header {
-	int dp_ifindex;
+    int dp_ifindex;
 };
 
 /* Datapaths. */
@@ -71,11 +71,11 @@ struct ovs_header {
 #define OVS_DP_VER_FEATURES 2
 
 enum ovs_datapath_cmd {
-	OVS_DP_CMD_UNSPEC,
-	OVS_DP_CMD_NEW,
-	OVS_DP_CMD_DEL,
-	OVS_DP_CMD_GET,
-	OVS_DP_CMD_SET
+    OVS_DP_CMD_UNSPEC,
+    OVS_DP_CMD_NEW,
+    OVS_DP_CMD_DEL,
+    OVS_DP_CMD_GET,
+    OVS_DP_CMD_SET
 };
 
 /**
@@ -98,49 +98,49 @@ enum ovs_datapath_cmd {
  * payload for %OVS_DP_* commands.
  */
 enum ovs_datapath_attr {
-	OVS_DP_ATTR_UNSPEC,
-	OVS_DP_ATTR_NAME,		/* name of dp_ifindex netdev */
-	OVS_DP_ATTR_UPCALL_PID,		/* Netlink PID to receive upcalls */
-	OVS_DP_ATTR_STATS,		/* struct ovs_dp_stats */
-	OVS_DP_ATTR_MEGAFLOW_STATS,	/* struct ovs_dp_megaflow_stats */
-	OVS_DP_ATTR_USER_FEATURES,	/* OVS_DP_F_*  */
-	__OVS_DP_ATTR_MAX
+    OVS_DP_ATTR_UNSPEC,
+    OVS_DP_ATTR_NAME,       /* name of dp_ifindex netdev */
+    OVS_DP_ATTR_UPCALL_PID,     /* Netlink PID to receive upcalls */
+    OVS_DP_ATTR_STATS,      /* struct ovs_dp_stats */
+    OVS_DP_ATTR_MEGAFLOW_STATS, /* struct ovs_dp_megaflow_stats */
+    OVS_DP_ATTR_USER_FEATURES,  /* OVS_DP_F_*  */
+    __OVS_DP_ATTR_MAX
 };
 
 #define OVS_DP_ATTR_MAX (__OVS_DP_ATTR_MAX - 1)
 
 /* All 64-bit integers within Netlink messages are 4-byte aligned only. */
 struct ovs_dp_stats {
-	__u64 n_hit;             /* Number of flow table matches. */
-	__u64 n_missed;          /* Number of flow table misses. */
-	__u64 n_lost;            /* Number of misses not sent to userspace. */
-	__u64 n_flows;           /* Number of flows present */
+    __u64 n_hit;             /* Number of flow table matches. */
+    __u64 n_missed;          /* Number of flow table misses. */
+    __u64 n_lost;            /* Number of misses not sent to userspace. */
+    __u64 n_flows;           /* Number of flows present */
 };
 
 struct ovs_dp_megaflow_stats {
-	__u64 n_mask_hit;	 /* Number of masks used for flow lookups. */
-	__u32 n_masks;		 /* Number of masks for the datapath. */
-	__u32 pad0;		 /* Pad for future expension. */
-	__u64 pad1;		 /* Pad for future expension. */
-	__u64 pad2;		 /* Pad for future expension. */
+    __u64 n_mask_hit;    /* Number of masks used for flow lookups. */
+    __u32 n_masks;       /* Number of masks for the datapath. */
+    __u32 pad0;      /* Pad for future expension. */
+    __u64 pad1;      /* Pad for future expension. */
+    __u64 pad2;      /* Pad for future expension. */
 };
 
 struct ovs_vport_stats {
-	__u64   rx_packets;		/* total packets received       */
-	__u64   tx_packets;		/* total packets transmitted    */
-	__u64   rx_bytes;		/* total bytes received         */
-	__u64   tx_bytes;		/* total bytes transmitted      */
-	__u64   rx_errors;		/* bad packets received         */
-	__u64   tx_errors;		/* packet transmit problems     */
-	__u64   rx_dropped;		/* no space in linux buffers    */
-	__u64   tx_dropped;		/* no space available in linux  */
+    __u64   rx_packets;     /* total packets received       */
+    __u64   tx_packets;     /* total packets transmitted    */
+    __u64   rx_bytes;       /* total bytes received         */
+    __u64   tx_bytes;       /* total bytes transmitted      */
+    __u64   rx_errors;      /* bad packets received         */
+    __u64   tx_errors;      /* packet transmit problems     */
+    __u64   rx_dropped;     /* no space in linux buffers    */
+    __u64   tx_dropped;     /* no space available in linux  */
 };
 
 /* Allow last Netlink attribute to be unaligned */
-#define OVS_DP_F_UNALIGNED	(1 << 0)
+#define OVS_DP_F_UNALIGNED  (1 << 0)
 
 /* Allow datapath to associate multiple Netlink PIDs to each vport */
-#define OVS_DP_F_VPORT_PIDS	(1 << 1)
+#define OVS_DP_F_VPORT_PIDS (1 << 1)
 
 /* Fixed logical ports. */
 #define OVSP_LOCAL      ((__u32)0)
@@ -151,14 +151,14 @@ struct ovs_vport_stats {
 #define OVS_PACKET_VERSION 0x1
 
 enum ovs_packet_cmd {
-	OVS_PACKET_CMD_UNSPEC,
+    OVS_PACKET_CMD_UNSPEC,
 
-	/* Kernel-to-user notifications. */
-	OVS_PACKET_CMD_MISS,    /* Flow table miss. */
-	OVS_PACKET_CMD_ACTION,  /* OVS_ACTION_ATTR_USERSPACE action. */
+    /* Kernel-to-user notifications. */
+    OVS_PACKET_CMD_MISS,    /* Flow table miss. */
+    OVS_PACKET_CMD_ACTION,  /* OVS_ACTION_ATTR_USERSPACE action. */
 
-	/* Userspace commands. */
-	OVS_PACKET_CMD_EXECUTE  /* Apply actions to a packet. */
+    /* Userspace commands. */
+    OVS_PACKET_CMD_EXECUTE  /* Apply actions to a packet. */
 };
 
 /**
@@ -195,19 +195,19 @@ enum ovs_packet_cmd {
  * payload for %OVS_PACKET_* commands.
  */
 enum ovs_packet_attr {
-	OVS_PACKET_ATTR_UNSPEC,
-	OVS_PACKET_ATTR_PACKET,      /* Packet data. */
-	OVS_PACKET_ATTR_KEY,         /* Nested OVS_KEY_ATTR_* attributes. */
-	OVS_PACKET_ATTR_ACTIONS,     /* Nested OVS_ACTION_ATTR_* attributes. */
-	OVS_PACKET_ATTR_USERDATA,    /* OVS_ACTION_ATTR_USERSPACE arg. */
-	OVS_PACKET_ATTR_EGRESS_TUN_KEY,  /* Nested OVS_TUNNEL_KEY_ATTR_*
-					    attributes. */
-	OVS_PACKET_ATTR_UNUSED1,
-	OVS_PACKET_ATTR_UNUSED2,
-	OVS_PACKET_ATTR_PROBE,      /* Packet operation is a feature probe,
-				       error logging should be suppressed. */
-	OVS_PACKET_ATTR_MRU,	    /* Maximum received IP fragment size. */
-	__OVS_PACKET_ATTR_MAX
+    OVS_PACKET_ATTR_UNSPEC,
+    OVS_PACKET_ATTR_PACKET,      /* Packet data. */
+    OVS_PACKET_ATTR_KEY,         /* Nested OVS_KEY_ATTR_* attributes. */
+    OVS_PACKET_ATTR_ACTIONS,     /* Nested OVS_ACTION_ATTR_* attributes. */
+    OVS_PACKET_ATTR_USERDATA,    /* OVS_ACTION_ATTR_USERSPACE arg. */
+    OVS_PACKET_ATTR_EGRESS_TUN_KEY,  /* Nested OVS_TUNNEL_KEY_ATTR_*
+                        attributes. */
+    OVS_PACKET_ATTR_UNUSED1,
+    OVS_PACKET_ATTR_UNUSED2,
+    OVS_PACKET_ATTR_PROBE,      /* Packet operation is a feature probe,
+                       error logging should be suppressed. */
+    OVS_PACKET_ATTR_MRU,        /* Maximum received IP fragment size. */
+    __OVS_PACKET_ATTR_MAX
 };
 
 #define OVS_PACKET_ATTR_MAX (__OVS_PACKET_ATTR_MAX - 1)
@@ -219,23 +219,23 @@ enum ovs_packet_attr {
 #define OVS_VPORT_VERSION 0x1
 
 enum ovs_vport_cmd {
-	OVS_VPORT_CMD_UNSPEC,
-	OVS_VPORT_CMD_NEW,
-	OVS_VPORT_CMD_DEL,
-	OVS_VPORT_CMD_GET,
-	OVS_VPORT_CMD_SET
+    OVS_VPORT_CMD_UNSPEC,
+    OVS_VPORT_CMD_NEW,
+    OVS_VPORT_CMD_DEL,
+    OVS_VPORT_CMD_GET,
+    OVS_VPORT_CMD_SET
 };
 
 enum ovs_vport_type {
-	OVS_VPORT_TYPE_UNSPEC,
-	OVS_VPORT_TYPE_NETDEV,   /* network device */
-	OVS_VPORT_TYPE_INTERNAL, /* network device implemented by datapath */
-	OVS_VPORT_TYPE_GRE,      /* GRE tunnel. */
-	OVS_VPORT_TYPE_VXLAN,	 /* VXLAN tunnel. */
-	OVS_VPORT_TYPE_GENEVE,	 /* Geneve tunnel. */
-	OVS_VPORT_TYPE_LISP = 105,  /* LISP tunnel */
-	OVS_VPORT_TYPE_STT = 106, /* STT tunnel */
-	__OVS_VPORT_TYPE_MAX
+    OVS_VPORT_TYPE_UNSPEC,
+    OVS_VPORT_TYPE_NETDEV,   /* network device */
+    OVS_VPORT_TYPE_INTERNAL, /* network device implemented by datapath */
+    OVS_VPORT_TYPE_GRE,      /* GRE tunnel. */
+    OVS_VPORT_TYPE_VXLAN,    /* VXLAN tunnel. */
+    OVS_VPORT_TYPE_GENEVE,   /* Geneve tunnel. */
+    OVS_VPORT_TYPE_LISP = 105,  /* LISP tunnel */
+    OVS_VPORT_TYPE_STT = 106, /* STT tunnel */
+    __OVS_VPORT_TYPE_MAX
 };
 
 #define OVS_VPORT_TYPE_MAX (__OVS_VPORT_TYPE_MAX - 1)
@@ -271,23 +271,23 @@ enum ovs_vport_type {
  * ovs_header plus %OVS_VPORT_ATTR_PORT_NO determine the vport.
  */
 enum ovs_vport_attr {
-	OVS_VPORT_ATTR_UNSPEC,
-	OVS_VPORT_ATTR_PORT_NO,	/* u32 port number within datapath */
-	OVS_VPORT_ATTR_TYPE,	/* u32 OVS_VPORT_TYPE_* constant. */
-	OVS_VPORT_ATTR_NAME,	/* string name, up to IFNAMSIZ bytes long */
-	OVS_VPORT_ATTR_OPTIONS, /* nested attributes, varies by vport type */
-	OVS_VPORT_ATTR_UPCALL_PID, /* array of u32 Netlink socket PIDs for */
-				/* receiving upcalls */
-	OVS_VPORT_ATTR_STATS,	/* struct ovs_vport_stats */
-	__OVS_VPORT_ATTR_MAX
+    OVS_VPORT_ATTR_UNSPEC,
+    OVS_VPORT_ATTR_PORT_NO, /* u32 port number within datapath */
+    OVS_VPORT_ATTR_TYPE,    /* u32 OVS_VPORT_TYPE_* constant. */
+    OVS_VPORT_ATTR_NAME,    /* string name, up to IFNAMSIZ bytes long */
+    OVS_VPORT_ATTR_OPTIONS, /* nested attributes, varies by vport type */
+    OVS_VPORT_ATTR_UPCALL_PID, /* array of u32 Netlink socket PIDs for */
+                /* receiving upcalls */
+    OVS_VPORT_ATTR_STATS,   /* struct ovs_vport_stats */
+    __OVS_VPORT_ATTR_MAX
 };
 
 #define OVS_VPORT_ATTR_MAX (__OVS_VPORT_ATTR_MAX - 1)
 
 enum {
-	OVS_VXLAN_EXT_UNSPEC,
-	OVS_VXLAN_EXT_GBP,      /* Flag or __u32 */
-	__OVS_VXLAN_EXT_MAX,
+    OVS_VXLAN_EXT_UNSPEC,
+    OVS_VXLAN_EXT_GBP,      /* Flag or __u32 */
+    __OVS_VXLAN_EXT_MAX,
 };
 
 #define OVS_VXLAN_EXT_MAX (__OVS_VXLAN_EXT_MAX - 1)
@@ -295,10 +295,10 @@ enum {
 /* OVS_VPORT_ATTR_OPTIONS attributes for tunnels.
  */
 enum {
-	OVS_TUNNEL_ATTR_UNSPEC,
-	OVS_TUNNEL_ATTR_DST_PORT, /* 16-bit UDP port, used by L4 tunnels. */
-	OVS_TUNNEL_ATTR_EXTENSION,
-	__OVS_TUNNEL_ATTR_MAX
+    OVS_TUNNEL_ATTR_UNSPEC,
+    OVS_TUNNEL_ATTR_DST_PORT, /* 16-bit UDP port, used by L4 tunnels. */
+    OVS_TUNNEL_ATTR_EXTENSION,
+    __OVS_TUNNEL_ATTR_MAX
 };
 
 #define OVS_TUNNEL_ATTR_MAX (__OVS_TUNNEL_ATTR_MAX - 1)
@@ -310,74 +310,74 @@ enum {
 #define OVS_FLOW_VERSION 0x1
 
 enum ovs_flow_cmd {
-	OVS_FLOW_CMD_UNSPEC,
-	OVS_FLOW_CMD_NEW,
-	OVS_FLOW_CMD_DEL,
-	OVS_FLOW_CMD_GET,
-	OVS_FLOW_CMD_SET
+    OVS_FLOW_CMD_UNSPEC,
+    OVS_FLOW_CMD_NEW,
+    OVS_FLOW_CMD_DEL,
+    OVS_FLOW_CMD_GET,
+    OVS_FLOW_CMD_SET
 };
 
 struct ovs_flow_stats {
-	__u64 n_packets;         /* Number of matched packets. */
-	__u64 n_bytes;           /* Number of matched bytes. */
+    __u64 n_packets;         /* Number of matched packets. */
+    __u64 n_bytes;           /* Number of matched bytes. */
 };
 
 enum ovs_key_attr {
-	OVS_KEY_ATTR_UNSPEC,
-	OVS_KEY_ATTR_ENCAP,	/* Nested set of encapsulated attributes. */
-	OVS_KEY_ATTR_PRIORITY,  /* u32 skb->priority */
-	OVS_KEY_ATTR_IN_PORT,   /* u32 OVS dp port number */
-	OVS_KEY_ATTR_ETHERNET,  /* struct ovs_key_ethernet */
-	OVS_KEY_ATTR_VLAN,	/* be16 VLAN TCI */
-	OVS_KEY_ATTR_ETHERTYPE,	/* be16 Ethernet type */
-	OVS_KEY_ATTR_IPV4,      /* struct ovs_key_ipv4 */
-	OVS_KEY_ATTR_IPV6,      /* struct ovs_key_ipv6 */
-	OVS_KEY_ATTR_TCP,       /* struct ovs_key_tcp */
-	OVS_KEY_ATTR_UDP,       /* struct ovs_key_udp */
-	OVS_KEY_ATTR_ICMP,      /* struct ovs_key_icmp */
-	OVS_KEY_ATTR_ICMPV6,    /* struct ovs_key_icmpv6 */
-	OVS_KEY_ATTR_ARP,       /* struct ovs_key_arp */
-	OVS_KEY_ATTR_ND,        /* struct ovs_key_nd */
-	OVS_KEY_ATTR_SKB_MARK,  /* u32 skb mark */
-	OVS_KEY_ATTR_TUNNEL,    /* Nested set of ovs_tunnel attributes */
-	OVS_KEY_ATTR_SCTP,      /* struct ovs_key_sctp */
-	OVS_KEY_ATTR_TCP_FLAGS,	/* be16 TCP flags. */
-	OVS_KEY_ATTR_DP_HASH,   /* u32 hash value. Value 0 indicates the hash
-				   is not computed by the datapath. */
-	OVS_KEY_ATTR_RECIRC_ID, /* u32 recirc id */
-	OVS_KEY_ATTR_MPLS,      /* array of struct ovs_key_mpls.
-				 * The implementation may restrict
-				 * the accepted length of the array. */
-	OVS_KEY_ATTR_CT_STATE,	/* u32 bitmask of OVS_CS_F_* */
-	OVS_KEY_ATTR_CT_ZONE,	/* u16 connection tracking zone. */
-	OVS_KEY_ATTR_CT_MARK,	/* u32 connection tracking mark */
-	OVS_KEY_ATTR_CT_LABELS,	/* 16-octet connection tracking labels */
+    OVS_KEY_ATTR_UNSPEC,
+    OVS_KEY_ATTR_ENCAP, /* Nested set of encapsulated attributes. */
+    OVS_KEY_ATTR_PRIORITY,  /* u32 skb->priority */
+    OVS_KEY_ATTR_IN_PORT,   /* u32 OVS dp port number */
+    OVS_KEY_ATTR_ETHERNET,  /* struct ovs_key_ethernet */
+    OVS_KEY_ATTR_VLAN,  /* be16 VLAN TCI */
+    OVS_KEY_ATTR_ETHERTYPE, /* be16 Ethernet type */
+    OVS_KEY_ATTR_IPV4,      /* struct ovs_key_ipv4 */
+    OVS_KEY_ATTR_IPV6,      /* struct ovs_key_ipv6 */
+    OVS_KEY_ATTR_TCP,       /* struct ovs_key_tcp */
+    OVS_KEY_ATTR_UDP,       /* struct ovs_key_udp */
+    OVS_KEY_ATTR_ICMP,      /* struct ovs_key_icmp */
+    OVS_KEY_ATTR_ICMPV6,    /* struct ovs_key_icmpv6 */
+    OVS_KEY_ATTR_ARP,       /* struct ovs_key_arp */
+    OVS_KEY_ATTR_ND,        /* struct ovs_key_nd */
+    OVS_KEY_ATTR_SKB_MARK,  /* u32 skb mark */
+    OVS_KEY_ATTR_TUNNEL,    /* Nested set of ovs_tunnel attributes */
+    OVS_KEY_ATTR_SCTP,      /* struct ovs_key_sctp */
+    OVS_KEY_ATTR_TCP_FLAGS, /* be16 TCP flags. */
+    OVS_KEY_ATTR_DP_HASH,   /* u32 hash value. Value 0 indicates the hash
+                   is not computed by the datapath. */
+    OVS_KEY_ATTR_RECIRC_ID, /* u32 recirc id */
+    OVS_KEY_ATTR_MPLS,      /* array of struct ovs_key_mpls.
+                 * The implementation may restrict
+                 * the accepted length of the array. */
+    OVS_KEY_ATTR_CT_STATE,  /* u32 bitmask of OVS_CS_F_* */
+    OVS_KEY_ATTR_CT_ZONE,   /* u16 connection tracking zone. */
+    OVS_KEY_ATTR_CT_MARK,   /* u32 connection tracking mark */
+    OVS_KEY_ATTR_CT_LABELS, /* 16-octet connection tracking labels */
 
 #ifdef __KERNEL__
-	/* Only used within kernel data path. */
-	OVS_KEY_ATTR_TUNNEL_INFO,  /* struct ovs_tunnel_info */
+    /* Only used within kernel data path. */
+    OVS_KEY_ATTR_TUNNEL_INFO,  /* struct ovs_tunnel_info */
 #endif
-	__OVS_KEY_ATTR_MAX
+    __OVS_KEY_ATTR_MAX
 };
 
 #define OVS_KEY_ATTR_MAX (__OVS_KEY_ATTR_MAX - 1)
 
 enum ovs_tunnel_key_attr {
-	OVS_TUNNEL_KEY_ATTR_ID,                 /* be64 Tunnel ID */
-	OVS_TUNNEL_KEY_ATTR_IPV4_SRC,           /* be32 src IP address. */
-	OVS_TUNNEL_KEY_ATTR_IPV4_DST,           /* be32 dst IP address. */
-	OVS_TUNNEL_KEY_ATTR_TOS,                /* u8 Tunnel IP ToS. */
-	OVS_TUNNEL_KEY_ATTR_TTL,                /* u8 Tunnel IP TTL. */
-	OVS_TUNNEL_KEY_ATTR_DONT_FRAGMENT,      /* No argument, set DF. */
-	OVS_TUNNEL_KEY_ATTR_CSUM,               /* No argument. CSUM packet. */
-	OVS_TUNNEL_KEY_ATTR_OAM,                /* No argument. OAM frame.  */
-	OVS_TUNNEL_KEY_ATTR_GENEVE_OPTS,        /* Array of Geneve options. */
-	OVS_TUNNEL_KEY_ATTR_TP_SRC,		/* be16 src Transport Port. */
-	OVS_TUNNEL_KEY_ATTR_TP_DST,		/* be16 dst Transport Port. */
-	OVS_TUNNEL_KEY_ATTR_VXLAN_OPTS,		/* Nested OVS_VXLAN_EXT_* */
-	OVS_TUNNEL_KEY_ATTR_IPV6_SRC,		/* struct in6_addr src IPv6 address. */
-	OVS_TUNNEL_KEY_ATTR_IPV6_DST,		/* struct in6_addr dst IPv6 address. */
-	__OVS_TUNNEL_KEY_ATTR_MAX
+    OVS_TUNNEL_KEY_ATTR_ID,                 /* be64 Tunnel ID */
+    OVS_TUNNEL_KEY_ATTR_IPV4_SRC,           /* be32 src IP address. */
+    OVS_TUNNEL_KEY_ATTR_IPV4_DST,           /* be32 dst IP address. */
+    OVS_TUNNEL_KEY_ATTR_TOS,                /* u8 Tunnel IP ToS. */
+    OVS_TUNNEL_KEY_ATTR_TTL,                /* u8 Tunnel IP TTL. */
+    OVS_TUNNEL_KEY_ATTR_DONT_FRAGMENT,      /* No argument, set DF. */
+    OVS_TUNNEL_KEY_ATTR_CSUM,               /* No argument. CSUM packet. */
+    OVS_TUNNEL_KEY_ATTR_OAM,                /* No argument. OAM frame.  */
+    OVS_TUNNEL_KEY_ATTR_GENEVE_OPTS,        /* Array of Geneve options. */
+    OVS_TUNNEL_KEY_ATTR_TP_SRC,     /* be16 src Transport Port. */
+    OVS_TUNNEL_KEY_ATTR_TP_DST,     /* be16 dst Transport Port. */
+    OVS_TUNNEL_KEY_ATTR_VXLAN_OPTS,     /* Nested OVS_VXLAN_EXT_* */
+    OVS_TUNNEL_KEY_ATTR_IPV6_SRC,       /* struct in6_addr src IPv6 address. */
+    OVS_TUNNEL_KEY_ATTR_IPV6_DST,       /* struct in6_addr dst IPv6 address. */
+    __OVS_TUNNEL_KEY_ATTR_MAX
 };
 
 #define OVS_TUNNEL_KEY_ATTR_MAX (__OVS_TUNNEL_KEY_ATTR_MAX - 1)
@@ -392,91 +392,91 @@ enum ovs_tunnel_key_attr {
  * ovs_key_ipv6.
  */
 enum ovs_frag_type {
-	OVS_FRAG_TYPE_NONE,
-	OVS_FRAG_TYPE_FIRST,
-	OVS_FRAG_TYPE_LATER,
-	__OVS_FRAG_TYPE_MAX
+    OVS_FRAG_TYPE_NONE,
+    OVS_FRAG_TYPE_FIRST,
+    OVS_FRAG_TYPE_LATER,
+    __OVS_FRAG_TYPE_MAX
 };
 
 #define OVS_FRAG_TYPE_MAX (__OVS_FRAG_TYPE_MAX - 1)
 
 struct ovs_key_ethernet {
-	__u8	 eth_src[ETH_ALEN];
-	__u8	 eth_dst[ETH_ALEN];
+    __u8     eth_src[ETH_ALEN];
+    __u8     eth_dst[ETH_ALEN];
 };
 
 struct ovs_key_mpls {
-	__be32 mpls_lse;
+    __be32 mpls_lse;
 };
 
 struct ovs_key_ipv4 {
-	__be32 ipv4_src;
-	__be32 ipv4_dst;
-	__u8   ipv4_proto;
-	__u8   ipv4_tos;
-	__u8   ipv4_ttl;
-	__u8   ipv4_frag;	/* One of OVS_FRAG_TYPE_*. */
+    __be32 ipv4_src;
+    __be32 ipv4_dst;
+    __u8   ipv4_proto;
+    __u8   ipv4_tos;
+    __u8   ipv4_ttl;
+    __u8   ipv4_frag;   /* One of OVS_FRAG_TYPE_*. */
 };
 
 struct ovs_key_ipv6 {
-	__be32 ipv6_src[4];
-	__be32 ipv6_dst[4];
-	__be32 ipv6_label;	/* 20-bits in least-significant bits. */
-	__u8   ipv6_proto;
-	__u8   ipv6_tclass;
-	__u8   ipv6_hlimit;
-	__u8   ipv6_frag;	/* One of OVS_FRAG_TYPE_*. */
+    __be32 ipv6_src[4];
+    __be32 ipv6_dst[4];
+    __be32 ipv6_label;  /* 20-bits in least-significant bits. */
+    __u8   ipv6_proto;
+    __u8   ipv6_tclass;
+    __u8   ipv6_hlimit;
+    __u8   ipv6_frag;   /* One of OVS_FRAG_TYPE_*. */
 };
 
 struct ovs_key_tcp {
-	__be16 tcp_src;
-	__be16 tcp_dst;
+    __be16 tcp_src;
+    __be16 tcp_dst;
 };
 
 struct ovs_key_udp {
-	__be16 udp_src;
-	__be16 udp_dst;
+    __be16 udp_src;
+    __be16 udp_dst;
 };
 
 struct ovs_key_sctp {
-	__be16 sctp_src;
-	__be16 sctp_dst;
+    __be16 sctp_src;
+    __be16 sctp_dst;
 };
 
 struct ovs_key_icmp {
-	__u8 icmp_type;
-	__u8 icmp_code;
+    __u8 icmp_type;
+    __u8 icmp_code;
 };
 
 struct ovs_key_icmpv6 {
-	__u8 icmpv6_type;
-	__u8 icmpv6_code;
+    __u8 icmpv6_type;
+    __u8 icmpv6_code;
 };
 
 struct ovs_key_arp {
-	__be32 arp_sip;
-	__be32 arp_tip;
-	__be16 arp_op;
-	__u8   arp_sha[ETH_ALEN];
-	__u8   arp_tha[ETH_ALEN];
+    __be32 arp_sip;
+    __be32 arp_tip;
+    __be16 arp_op;
+    __u8   arp_sha[ETH_ALEN];
+    __u8   arp_tha[ETH_ALEN];
 };
 
 struct ovs_key_nd {
-	__be32	nd_target[4];
-	__u8	nd_sll[ETH_ALEN];
-	__u8	nd_tll[ETH_ALEN];
+    __be32  nd_target[4];
+    __u8    nd_sll[ETH_ALEN];
+    __u8    nd_tll[ETH_ALEN];
 };
 
-#define OVS_CT_LABELS_LEN	16
+#define OVS_CT_LABELS_LEN   16
 struct ovs_key_ct_labels {
-	__u8	ct_labels[OVS_CT_LABELS_LEN];
+    __u8    ct_labels[OVS_CT_LABELS_LEN];
 };
 
 /* OVS_KEY_ATTR_CT_STATE flags */
 #define OVS_CS_F_NEW               0x01 /* Beginning of a new connection. */
 #define OVS_CS_F_ESTABLISHED       0x02 /* Part of an existing connection. */
 #define OVS_CS_F_RELATED           0x04 /* Related to an established
-					 * connection. */
+                     * connection. */
 #define OVS_CS_F_REPLY_DIR         0x08 /* Flow is in the reply direction. */
 #define OVS_CS_F_INVALID           0x10 /* Could not track connection. */
 #define OVS_CS_F_TRACKED           0x20 /* Conntrack has occurred. */
@@ -524,19 +524,19 @@ struct ovs_key_ct_labels {
  * payload for %OVS_FLOW_* commands.
  */
 enum ovs_flow_attr {
-	OVS_FLOW_ATTR_UNSPEC,
-	OVS_FLOW_ATTR_KEY,       /* Sequence of OVS_KEY_ATTR_* attributes. */
-	OVS_FLOW_ATTR_ACTIONS,   /* Nested OVS_ACTION_ATTR_* attributes. */
-	OVS_FLOW_ATTR_STATS,     /* struct ovs_flow_stats. */
-	OVS_FLOW_ATTR_TCP_FLAGS, /* 8-bit OR'd TCP flags. */
-	OVS_FLOW_ATTR_USED,      /* u64 msecs last used in monotonic time. */
-	OVS_FLOW_ATTR_CLEAR,     /* Flag to clear stats, tcp_flags, used. */
-	OVS_FLOW_ATTR_MASK,      /* Sequence of OVS_KEY_ATTR_* attributes. */
-	OVS_FLOW_ATTR_PROBE,     /* Flow operation is a feature probe, error
-				  * logging should be suppressed. */
-	OVS_FLOW_ATTR_UFID,      /* Variable length unique flow identifier. */
-	OVS_FLOW_ATTR_UFID_FLAGS,/* u32 of OVS_UFID_F_*. */
-	__OVS_FLOW_ATTR_MAX
+    OVS_FLOW_ATTR_UNSPEC,
+    OVS_FLOW_ATTR_KEY,       /* Sequence of OVS_KEY_ATTR_* attributes. */
+    OVS_FLOW_ATTR_ACTIONS,   /* Nested OVS_ACTION_ATTR_* attributes. */
+    OVS_FLOW_ATTR_STATS,     /* struct ovs_flow_stats. */
+    OVS_FLOW_ATTR_TCP_FLAGS, /* 8-bit OR'd TCP flags. */
+    OVS_FLOW_ATTR_USED,      /* u64 msecs last used in monotonic time. */
+    OVS_FLOW_ATTR_CLEAR,     /* Flag to clear stats, tcp_flags, used. */
+    OVS_FLOW_ATTR_MASK,      /* Sequence of OVS_KEY_ATTR_* attributes. */
+    OVS_FLOW_ATTR_PROBE,     /* Flow operation is a feature probe, error
+                  * logging should be suppressed. */
+    OVS_FLOW_ATTR_UFID,      /* Variable length unique flow identifier. */
+    OVS_FLOW_ATTR_UFID_FLAGS,/* u32 of OVS_UFID_F_*. */
+    __OVS_FLOW_ATTR_MAX
 };
 
 #define OVS_FLOW_ATTR_MAX (__OVS_FLOW_ATTR_MAX - 1)
@@ -564,10 +564,10 @@ enum ovs_flow_attr {
  * basis.
  */
 enum ovs_sample_attr {
-	OVS_SAMPLE_ATTR_UNSPEC,
-	OVS_SAMPLE_ATTR_PROBABILITY, /* u32 number */
-	OVS_SAMPLE_ATTR_ACTIONS,     /* Nested OVS_ACTION_ATTR_* attributes. */
-	__OVS_SAMPLE_ATTR_MAX,
+    OVS_SAMPLE_ATTR_UNSPEC,
+    OVS_SAMPLE_ATTR_PROBABILITY, /* u32 number */
+    OVS_SAMPLE_ATTR_ACTIONS,     /* Nested OVS_ACTION_ATTR_* attributes. */
+    __OVS_SAMPLE_ATTR_MAX,
 };
 
 #define OVS_SAMPLE_ATTR_MAX (__OVS_SAMPLE_ATTR_MAX - 1)
@@ -583,13 +583,13 @@ enum ovs_sample_attr {
  * @OVS_USERSPACE_ATTR_ACTIONS: If present, send actions with upcall.
  */
 enum ovs_userspace_attr {
-	OVS_USERSPACE_ATTR_UNSPEC,
-	OVS_USERSPACE_ATTR_PID,	      /* u32 Netlink PID to receive upcalls. */
-	OVS_USERSPACE_ATTR_USERDATA,  /* Optional user-specified cookie. */
-	OVS_USERSPACE_ATTR_EGRESS_TUN_PORT,  /* Optional, u32 output port
-					      * to get tunnel info. */
-	OVS_USERSPACE_ATTR_ACTIONS,   /* Optional flag to get actions. */
-	__OVS_USERSPACE_ATTR_MAX
+    OVS_USERSPACE_ATTR_UNSPEC,
+    OVS_USERSPACE_ATTR_PID,       /* u32 Netlink PID to receive upcalls. */
+    OVS_USERSPACE_ATTR_USERDATA,  /* Optional user-specified cookie. */
+    OVS_USERSPACE_ATTR_EGRESS_TUN_PORT,  /* Optional, u32 output port
+                          * to get tunnel info. */
+    OVS_USERSPACE_ATTR_ACTIONS,   /* Optional flag to get actions. */
+    __OVS_USERSPACE_ATTR_MAX
 };
 
 #define OVS_USERSPACE_ATTR_MAX (__OVS_USERSPACE_ATTR_MAX - 1)
@@ -603,8 +603,8 @@ enum ovs_userspace_attr {
  * %ETH_P_MPLS_MC, indicating MPLS unicast or multicast. Other are rejected.
  */
 struct ovs_action_push_mpls {
-	__be32 mpls_lse;
-	__be16 mpls_ethertype; /* Either %ETH_P_MPLS_UC or %ETH_P_MPLS_MC */
+    __be32 mpls_lse;
+    __be16 mpls_ethertype; /* Either %ETH_P_MPLS_UC or %ETH_P_MPLS_MC */
 };
 
 /**
@@ -619,8 +619,8 @@ struct ovs_action_push_mpls {
  * from having surprising results.
  */
 struct ovs_action_push_vlan {
-	__be16 vlan_tpid;	/* 802.1Q TPID. */
-	__be16 vlan_tci;	/* 802.1Q TCI (VLAN ID and priority). */
+    __be16 vlan_tpid;   /* 802.1Q TPID. */
+    __be16 vlan_tci;    /* 802.1Q TCI (VLAN ID and priority). */
 };
 
 /* Data path hash algorithm for computing Datapath hash.
@@ -631,7 +631,7 @@ struct ovs_action_push_vlan {
  * opaque to the user space daemon.
  */
 enum ovs_hash_alg {
-	OVS_HASH_ALG_L4,
+    OVS_HASH_ALG_L4,
 };
 
 /*
@@ -640,8 +640,8 @@ enum ovs_hash_alg {
  * @hash_basis: basis used for computing hash.
  */
 struct ovs_action_hash {
-	uint32_t  hash_alg;     /* One of ovs_hash_alg. */
-	uint32_t  hash_basis;
+    uint32_t  hash_alg;     /* One of ovs_hash_alg. */
+    uint32_t  hash_basis;
 };
 
 #ifndef __KERNEL__
@@ -658,11 +658,11 @@ struct ovs_action_hash {
  * this header to build final header according to actual packet parameters.
  */
 struct ovs_action_push_tnl {
-	uint32_t tnl_port;
-	uint32_t out_port;
-	uint32_t header_len;
-	uint32_t tnl_type;     /* For logging. */
-	uint8_t  header[TNL_PUSH_HEADER_SIZE];
+    uint32_t tnl_port;
+    uint32_t out_port;
+    uint32_t header_len;
+    uint32_t tnl_type;     /* For logging. */
+    uint8_t  header[TNL_PUSH_HEADER_SIZE];
 };
 #endif
 
@@ -682,14 +682,14 @@ struct ovs_action_push_tnl {
  * @OVS_CT_ATTR_HELPER: variable length string defining conntrack ALG.
  */
 enum ovs_ct_attr {
-	OVS_CT_ATTR_UNSPEC,
-	OVS_CT_ATTR_COMMIT,     /* No argument, commits connection. */
-	OVS_CT_ATTR_ZONE,       /* u16 zone id. */
-	OVS_CT_ATTR_MARK,       /* mark to associate with this connection. */
-	OVS_CT_ATTR_LABELS,     /* label to associate with this connection. */
-	OVS_CT_ATTR_HELPER,     /* netlink helper to assist detection of
-				   related connections. */
-	__OVS_CT_ATTR_MAX
+    OVS_CT_ATTR_UNSPEC,
+    OVS_CT_ATTR_COMMIT,     /* No argument, commits connection. */
+    OVS_CT_ATTR_ZONE,       /* u16 zone id. */
+    OVS_CT_ATTR_MARK,       /* mark to associate with this connection. */
+    OVS_CT_ATTR_LABELS,     /* label to associate with this connection. */
+    OVS_CT_ATTR_HELPER,     /* netlink helper to assist detection of
+                   related connections. */
+    __OVS_CT_ATTR_MAX
 };
 
 #define OVS_CT_ATTR_MAX (__OVS_CT_ATTR_MAX - 1)
@@ -742,34 +742,34 @@ enum ovs_ct_attr {
  */
 
 enum ovs_action_attr {
-	OVS_ACTION_ATTR_UNSPEC,
-	OVS_ACTION_ATTR_OUTPUT,	      /* u32 port number. */
-	OVS_ACTION_ATTR_USERSPACE,    /* Nested OVS_USERSPACE_ATTR_*. */
-	OVS_ACTION_ATTR_SET,          /* One nested OVS_KEY_ATTR_*. */
-	OVS_ACTION_ATTR_PUSH_VLAN,    /* struct ovs_action_push_vlan. */
-	OVS_ACTION_ATTR_POP_VLAN,     /* No argument. */
-	OVS_ACTION_ATTR_SAMPLE,       /* Nested OVS_SAMPLE_ATTR_*. */
-	OVS_ACTION_ATTR_RECIRC,       /* u32 recirc_id. */
-	OVS_ACTION_ATTR_HASH,	      /* struct ovs_action_hash. */
-	OVS_ACTION_ATTR_PUSH_MPLS,    /* struct ovs_action_push_mpls. */
-	OVS_ACTION_ATTR_POP_MPLS,     /* __be16 ethertype. */
-	OVS_ACTION_ATTR_SET_MASKED,   /* One nested OVS_KEY_ATTR_* including
-				       * data immediately followed by a mask.
-				       * The data must be zero for the unmasked
-				       * bits. */
-	OVS_ACTION_ATTR_CT,           /* Nested OVS_CT_ATTR_* . */
+    OVS_ACTION_ATTR_UNSPEC,
+    OVS_ACTION_ATTR_OUTPUT,       /* u32 port number. */
+    OVS_ACTION_ATTR_USERSPACE,    /* Nested OVS_USERSPACE_ATTR_*. */
+    OVS_ACTION_ATTR_SET,          /* One nested OVS_KEY_ATTR_*. */
+    OVS_ACTION_ATTR_PUSH_VLAN,    /* struct ovs_action_push_vlan. */
+    OVS_ACTION_ATTR_POP_VLAN,     /* No argument. */
+    OVS_ACTION_ATTR_SAMPLE,       /* Nested OVS_SAMPLE_ATTR_*. */
+    OVS_ACTION_ATTR_RECIRC,       /* u32 recirc_id. */
+    OVS_ACTION_ATTR_HASH,         /* struct ovs_action_hash. */
+    OVS_ACTION_ATTR_PUSH_MPLS,    /* struct ovs_action_push_mpls. */
+    OVS_ACTION_ATTR_POP_MPLS,     /* __be16 ethertype. */
+    OVS_ACTION_ATTR_SET_MASKED,   /* One nested OVS_KEY_ATTR_* including
+                       * data immediately followed by a mask.
+                       * The data must be zero for the unmasked
+                       * bits. */
+    OVS_ACTION_ATTR_CT,           /* Nested OVS_CT_ATTR_* . */
 
 #ifndef __KERNEL__
-	OVS_ACTION_ATTR_TUNNEL_PUSH,   /* struct ovs_action_push_tnl*/
-	OVS_ACTION_ATTR_TUNNEL_POP,    /* u32 port number. */
+    OVS_ACTION_ATTR_TUNNEL_PUSH,   /* struct ovs_action_push_tnl*/
+    OVS_ACTION_ATTR_TUNNEL_POP,    /* u32 port number. */
 #endif
-	__OVS_ACTION_ATTR_MAX,	      /* Nothing past this will be accepted
-				       * from userspace. */
+    __OVS_ACTION_ATTR_MAX,        /* Nothing past this will be accepted
+                       * from userspace. */
 
 #ifdef __KERNEL__
-	OVS_ACTION_ATTR_SET_TO_MASKED, /* Kernel module internal masked
-					* set action converted from
-					* OVS_ACTION_ATTR_SET. */
+    OVS_ACTION_ATTR_SET_TO_MASKED, /* Kernel module internal masked
+                    * set action converted from
+                    * OVS_ACTION_ATTR_SET. */
 #endif
 };
 
@@ -785,7 +785,7 @@ enum ovs_tt_cmd {
     OVS_TT_FLOW_CMD_DEL,
     __OVS_TT_FLOW_CMD_MAX,
 };
-#define OVS_TT_FLOW_CMD_MAX (__OVS_TT_FLOW_CMD_MAX - 1)		
+#define OVS_TT_FLOW_CMD_MAX (__OVS_TT_FLOW_CMD_MAX - 1)     
 
 /**
  * enum ovs_tt_attr - attributes for %OVS_TT_* commands
@@ -796,14 +796,14 @@ enum ovs_tt_cmd {
  * payload for %OVS_DP_* commands.
  */
 enum ovs_tt_attr {
-	OVS_TT_FLOW_ATTR_UNSPEC,
+    OVS_TT_FLOW_ATTR_UNSPEC,
     OVS_TT_FLOW_ATTR_PORT,
     OVS_TT_FLOW_ATTR_ETYPE,
-	OVS_TT_FLOW_ATTR_FLOW_ID,
-	OVS_TT_FLOW_ATTR_SCHEDULED_TIME,
-	OVS_TT_FLOW_ATTR_PERIOD,
-	OVS_TT_FLOW_ATTR_BUFFER_ID,
-	OVS_TT_FLOW_ATTR_PKT_SIZE,
+    OVS_TT_FLOW_ATTR_FLOW_ID,
+    OVS_TT_FLOW_ATTR_SCHEDULED_TIME,
+    OVS_TT_FLOW_ATTR_PERIOD,
+    OVS_TT_FLOW_ATTR_BUFFER_ID,
+    OVS_TT_FLOW_ATTR_PKT_SIZE,
     __OVS_TT_FLOW_ATTR_MAX,
 };
 #define OVS_TT_FLOW_ATTR_MAX (__OVS_TT_FLOW_ATTR_MAX - 1)

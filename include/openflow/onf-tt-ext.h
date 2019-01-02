@@ -44,7 +44,7 @@ OFP_ASSERT(sizeof(struct onf_exp_header) == 16);
 
 /* TT table commands 
 enum tx_tt_table_mod_command {
-	OFPFC_ADD,
+    OFPFC_ADD,
 };
 */
 

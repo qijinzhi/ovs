@@ -1789,12 +1789,12 @@ struct ofproto_class {
      * This function should be NULL if an implementation does not support it.
      */
     const char *(*get_datapath_version)(const struct ofproto *);
-	
+    
 /* ##-------------- ##*/
 /* ## tt extension ## */
 /* ##-------------- ##*/
-	enum ofperr (*tt_flow_add)(const struct ofproto *, 
-								const struct ofputil_tt_table_mod *);
+    enum ofperr (*tt_flow_add)(const struct ofproto *, 
+                                const struct ofputil_tt_table_mod *);
 };
 
 extern const struct ofproto_class ofproto_dpif_class;

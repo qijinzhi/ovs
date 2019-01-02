@@ -5757,10 +5757,10 @@ static enum ofperr
 tt_flow_add(const struct ofproto *ofproto_, const struct ofputil_tt_table_mod *mod)
 {
     struct ofproto_dpif *ofproto = ofproto_dpif_cast(ofproto_);
-	dpif_tt_flow_put(ofproto->backer->dpif, 
+    dpif_tt_flow_put(ofproto->backer->dpif, 
                      mod->port, mod->etype, mod->flow_id, mod->scheduled_time,
-					 mod->period, mod->buffer_id, mod->pkt_size);
-	return 0;
+                     mod->period, mod->buffer_id, mod->pkt_size);
+    return 0;
 }
 
 const struct ofproto_class ofproto_dpif_class = {
@@ -5859,5 +5859,5 @@ const struct ofproto_class ofproto_dpif_class = {
     group_modify,               /* group_modify */
     group_get_stats,            /* group_get_stats */
     get_datapath_version,       /* get_datapath_version */
-	tt_flow_add,               /* install a tt table */
+    tt_flow_add,               /* install a tt table */
 };
