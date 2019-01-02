@@ -216,11 +216,7 @@ void ovs_vport_free(struct vport *vport)
 	 * it is safe to use raw dereference.
 	 */
 	kfree(rcu_dereference_raw(vport->upcall_portids));
-    if (rcu_dereference_raw(vport->arrive_tt_table)) //此处进行修改
-        kfree(rcu_dereference_raw(vport->arrive_tt_table));
-    if (rcu_dereference_raw(vport->send_tt_table))
-        kfree(rcu_dereference_raw(vport->send_tt_table));
-    kfree(vport);
+	kfree(vport);
 }
 EXPORT_SYMBOL_GPL(ovs_vport_free);
 
@@ -233,49 +229,6 @@ static struct vport_ops *ovs_vport_lookup(const struct vport_parms *parms)
 			return ops;
 
 	return NULL;
-}
-
-
-//test
-static void test_tt_table(struct vport *p) {
-    struct tt_table_item* item1 = tt_table_item_alloc();
-    struct tt_table_item* item2 = tt_table_item_alloc();
-    item1->flow_id = 49;
-    item1->buffer_id = 100;
-    item1->circle = 8388608;
-    item1->len = 64;
-    item1->time = 17408;
-
-    item2->flow_id = 50;
-    item2->buffer_id = 200;
-    item2->circle = 8388608;
-    item2->len = 128;
-    item2->time = 45056;
-
-    struct tt_table_item* item3 = tt_table_item_alloc();
-    struct tt_table_item* item4 = tt_table_item_alloc();
-
-    item3->flow_id = 49;
-    item3->buffer_id = 100;
-    item3->circle = 8388608;
-    item3->len = 64;
-    item3->time = 900;
-    
-    item4->flow_id = 50;
-    item4->buffer_id = 200;
-    item4->circle = 8388608;
-    item4->len = 128;
-    item4->time = 2000;
- 
-    struct tt_table * cur = rcu_dereference(p->arrive_tt_table);
-    rcu_assign_pointer(cur, tt_table_item_insert(cur, item1));
-    rcu_assign_pointer(cur, tt_table_item_insert(cur, item2)); 
-    rcu_assign_pointer(p->arrive_tt_table, cur);
-
-    struct tt_table * cur2 = rcu_dereference(p->send_tt_table);
-    rcu_assign_pointer(cur2, tt_table_item_insert(cur2, item3));
-    rcu_assign_pointer(cur2, tt_table_item_insert(cur2, item4)); 
-    rcu_assign_pointer(p->send_tt_table, cur2);
 }
 
 /**
@@ -307,9 +260,6 @@ struct vport *ovs_vport_add(const struct vport_parms *parms)
 		bucket = hash_bucket(ovs_dp_get_net(vport->dp),
 				     ovs_vport_name(vport));
 		hlist_add_head_rcu(&vport->hash_node, bucket);
-
-        //修改此处，用于测试
-        test_tt_table(vport);
 		return vport;
 	}
 
@@ -354,10 +304,6 @@ int ovs_vport_set_options(struct vport *vport, struct nlattr *options)
 void ovs_vport_del(struct vport *vport)
 {
 	ASSERT_OVSL();
-    //if (rcu_dereference_raw(vport->arrive_tt_table)) //此处进行修改
-    //    kfree(rcu_dereference_raw(vport->arrive_tt_table));
-    //if (rcu_dereference_raw(vport->send_tt_table))
-    //    kfree(rcu_dereference_raw(vport->send_tt_table));
 
 	hlist_del_rcu(&vport->hash_node);
 	module_put(vport->ops->owner);
@@ -559,8 +505,7 @@ int ovs_vport_receive(struct vport *vport, struct sk_buff *skb,
 
 	ovs_skb_init_inner_protocol(skb);
 	skb_clear_ovs_gso_cb(skb);
-	
-    /* Extract flow from 'skb' into 'key'. */
+	/* Extract flow from 'skb' into 'key'. */
 	error = ovs_flow_key_extract(tun_info, skb, &key);
 	if (unlikely(error)) {
 		kfree_skb(skb);
