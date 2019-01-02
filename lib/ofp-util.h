@@ -1329,20 +1329,31 @@ enum ofperr ofputil_decode_requestforward(const struct ofp_header *,
                                           struct ofputil_requestforward *);
 void ofputil_destroy_requestforward(struct ofputil_requestforward *);
 
-
-struct ofputil_tt_table_mod {
-    /* Command type */
-    uint8_t command; /* One of OFPFC_* */
-    /* Entry field */
-    uint8_t port; /* The entry related port. */
-    uint8_t etype; /* Send entry or receive entry. */
-    uint8_t flow_id; /* The identify of a flow. */
-    ovs_be32 scheduled_time; /* The scheduled time that the flow packet is received or sent. */
-    ovs_be32 period; /* The scheduling period. */
-    ovs_be32 buffer_id; /* Buffered packet to apply to. */
-    ovs_be32 pkt_size; /* The flow packet size. */
+struct ofputil_tt_flow_ctrl_msg {
+    uint8_t     command;
+    uint8_t     type;
+    uint8_t     pad[2];
+    uint32_t    flow_number;
 };
+
+struct ofputil_tt_flow_mod_msg {
+    uint8_t     port;
+    uint8_t     etype;
+    uint8_t     flow_id;
+    uint8_t     pad;
+    uint32_t    scheduled_time;
+    uint32_t    period;
+    uint32_t    buffer_id;
+    uint32_t    pkt_size;
+};
+
+enum ofperr ofputil_decode_tt_flow_ctrl(const struct ofp_header *,
+                                        struct ofputil_tt_flow_ctrl_msg *);
+
+struct ofpbuf *ofputil_encode_tt_flow_ctrl_reply(const struct ofp_header *,
+                                                 struct ofputil_tt_flow_ctrl_msg *);
 
 enum ofperr ofputil_decode_tt_table_mod(const struct ofp_header *oh, 
 										struct ofputil_tt_table_mod *ttm);
+
 #endif /* ofp-util.h */

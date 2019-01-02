@@ -3449,6 +3449,9 @@ ofp_to_string__(const struct ofp_header *oh, enum ofpraw raw,
         ofp_print_tlv_table_reply(string, msg);
         break;
 
+    case OFPTYPE_ONF_TT_FLOW_CONTROL:
+        break;
+
     case OFPTYPE_ONF_TT_FLOW_MOD:
         break;
     }

@@ -42,6 +42,7 @@
 #include "ofpbuf.h"
 #include "ofproto-provider.h"
 #include "openflow/nicira-ext.h"
+#include "openflow/onf-tt-ext.h"
 #include "openflow/openflow.h"
 #include "ovs-rcu.h"
 #include "dp-packet.h"
@@ -7121,6 +7122,59 @@ tt_flow_mod(struct ofconn *ofconn, struct ofputil_tt_table_mod *ttm)
 }
 
 static enum ofperr
+handle_tt_flow_ctrl(struct ofconn *ofconn, const struct ofp_header *oh)
+{
+    struct ofputil_tt_flow_ctrl_msg tfctrl;
+    struct ofputil_tt_flow_ctrl_msg reply;
+    struct ofpbuf *buf;
+    enum ofperr error;
+
+    /* Test for recv frame by chen weihang */
+    static struct vlog_rate_limit rl = VLOG_RATE_LIMIT_INIT(1, 5);
+    
+    VLOG_INFO_RL(&rl, "TT control msg received!");
+
+    error = reject_slave_controller(ofconn);
+    if (error) {
+        return error;
+    }
+
+    error = ofputil_decode_tt_flow_ctrl(oh, &tfctrl);
+    if (error) {
+        return error;
+    }
+    reply.command = tfctrl.command;
+    reply.flow_number = tfctrl.flow_number;
+
+    VLOG_INFO_RL(&rl, "TT control msg: flow_num %d", tfctrl.flow_number);
+
+    switch (tfctrl.type) {
+    case ONF_TFCT_DOWNLOAD_START_REQUEST: 
+        // error = onf_tt_flow_receive_start(ofconn, 
+        //              tfctrl.command, tfctrl.flow_number);
+        reply.type = ONF_TFCT_DOWNLOAD_START_REPLY;
+        break;
+    case ONF_TFCT_DOWNLOAD_END_REQUEST:
+        // error = onf_tt_flow_receive_end(ofconn,
+        //              tfctrl.command, tfctrl.flow_number);
+        reply.type = ONF_TFCT_DOWNLOAD_END_REPLY;
+        break;
+
+    case ONF_TFCT_DOWNLOAD_START_REPLY:
+    case ONF_TFCT_DOWNLOAD_END_REPLY:
+        // return ONFERR_ET_TFC_BAD_TYPE;
+        break;
+    }
+
+    if (!error) {
+        buf = ofputil_encode_tt_flow_ctrl_reply(oh, &reply);
+        VLOG_INFO_RL(&rl, "TT control reply msg send!");
+        ofconn_send_reply(ofconn, buf);
+    }
+    return error;
+}
+
+static enum ofperr
 handle_tt_flow_mod(struct ofconn *ofconn, const struct ofp_header *oh)
 {
     /* Test for recv frame by chen weihang */
@@ -7300,6 +7354,9 @@ handle_openflow__(struct ofconn *ofconn, const struct ofpbuf *msg)
         return handle_tlv_table_request(ofconn, oh);
 
         /* TT etension */
+    case OFPTYPE_ONF_TT_FLOW_CONTROL:
+        return handle_tt_flow_ctrl(ofconn, oh);
+
     case OFPTYPE_ONF_TT_FLOW_MOD:
         return handle_tt_flow_mod(ofconn, oh);
 
