@@ -28,8 +28,10 @@
 #include <linux/spinlock.h>
 #include <linux/u64_stats_sync.h>
 #include <net/route.h>
+#include <linux/hrtimer.h>
 
 #include "datapath.h"
+#include "tt.h"
 
 struct vport;
 struct vport_parms;
@@ -102,6 +104,10 @@ struct vport {
 
 	struct list_head detach_list;
 	struct rcu_head rcu;
+    struct tt_table __rcu *arrive_tt_table; //因为并不是任何一个vport都有tt的表，所以放在vport结构体里面可能不太合适，这里后期应该会有优化
+    struct tt_table __rcu *send_tt_table;
+    struct tt_send_info *send_info;
+    struct hrtimer timer;
 };
 
 /**
