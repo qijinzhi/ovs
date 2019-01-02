@@ -419,6 +419,9 @@ struct dpif_class {
     /* Flushes the connection tracking tables. If 'zone' is not NULL,
      * only deletes connections in '*zone'. */
     int (*ct_flush)(struct dpif *, const uint16_t *zone);
+    
+    /* dpif_netlink_tt_operate */
+    void (*tt_operate)(struct dpif *dpif, struct dpif_tt_op **ops, size_t n_ops);
 };
 
 extern const struct dpif_class dpif_netlink_class;

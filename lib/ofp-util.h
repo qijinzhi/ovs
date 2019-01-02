@@ -29,6 +29,7 @@
 #include "netdev.h"
 #include "openflow/netronome-ext.h"
 #include "openflow/nicira-ext.h"
+#include "openflow/onf-tt-ext.h"
 #include "openvswitch/types.h"
 #include "type-props.h"
 
@@ -1351,5 +1352,8 @@ enum ofperr ofputil_decode_tt_flow_ctrl(const struct ofp_header *,
 
 struct ofpbuf *ofputil_encode_tt_flow_ctrl_reply(const struct ofp_header *,
                                                  struct ofputil_tt_flow_ctrl_msg *);
+
+enum ofperr ofputil_decode_tt_table_mod(const struct ofp_header *oh, 
+                                        struct ofputil_tt_flow_mod_msg *ttm);
 
 #endif /* ofp-util.h */
