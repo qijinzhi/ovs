@@ -203,6 +203,7 @@ static int ovs_datapath_family;
 static int ovs_vport_family;
 static int ovs_flow_family;
 static int ovs_packet_family;
+static int ovs_tt_family;
 
 /* Generic Netlink multicast groups for OVS.
  *
@@ -2342,6 +2343,268 @@ dpif_netlink_ct_flush(struct dpif *dpif OVS_UNUSED, const uint16_t *zone)
 }
 #endif
 
+/* tt extension*/
+/* Appends to 'buf' (which must initially be empty) a "struct ovs_header"
+ * followed by Netlink attributes corresponding to 'flow'. */
+struct dpif_netlink_tt_flow {
+    /* Generic Netlink header.*/
+    uint8_t cmd;
+    
+    /* struct ovs_header. */
+    unsigned int nlmsg_flags;
+    int dp_ifindex;
+    
+    /* Attributes. */
+    uint8_t port;            /* OVS_TT_FLOW_ATTR_PORT. */
+    uint8_t etype;           /* OVS_TT_FLOW_ATTR_ETYPE. */
+    uint8_t flow_id;         /* OVS_TT_FLOW_ATTR_FLOW_ID. */
+    ovs_be32 scheduled_time; /* OVS_TT_FLOW_ATTR_SCHEDULED_TIME. */
+    ovs_be32 period;         /* OVS_TT_FLOW_ATTR_PERIOD. */
+    ovs_be32 buffer_id;      /* OVS_TT_FLOW_ATTR_BUFFER_ID. */
+    ovs_be32 pkt_size;       /* OVS_TT_FLOW_ATTR_PKT_SIZE. */
+};
+
+/* Clears 'tt' to "empty" values. */
+static void
+dpif_netlink_tt_flow_init(struct dpif_netlink_tt_flow *tt_flow)
+{
+    memset(tt_flow, 0, sizeof *tt_flow);
+}
+
+/* Appends to 'buf' (which must initially be empty) a "struct ovs_header"
+ * followed by Netlink attributes corresponding to 'flow'. */
+static void
+dpif_netlink_tt_flow_to_ofpbuf(const struct dpif_netlink_tt_flow *flow,
+                            struct ofpbuf *buf)
+{
+    struct ovs_header *ovs_header;
+
+    VLOG_WARN("ovs_tt_family: %d.", ovs_tt_family);
+    
+    nl_msg_put_genlmsghdr(buf, 0, ovs_tt_family, 
+                          NLM_F_REQUEST, flow->cmd, OVS_TT_VERSION);
+    
+    ovs_header = ofpbuf_put_uninit(buf, sizeof *ovs_header);
+    ovs_header->dp_ifindex = flow->dp_ifindex;
+    
+    if (flow->port) {
+        nl_msg_put_u8(buf, OVS_TT_FLOW_ATTR_PORT, flow->port);
+    }
+    if (flow->etype) {
+        nl_msg_put_u8(buf, OVS_TT_FLOW_ATTR_ETYPE, flow->etype);
+    }
+    if (flow->flow_id) {
+        nl_msg_put_u8(buf, OVS_TT_FLOW_ATTR_FLOW_ID, flow->flow_id);
+    }
+    if (flow->scheduled_time) {
+        nl_msg_put_u32(buf, OVS_TT_FLOW_ATTR_SCHEDULED_TIME, flow->scheduled_time);
+    }
+    if (flow->period) {
+        nl_msg_put_u32(buf, OVS_TT_FLOW_ATTR_PERIOD, flow->period);
+    }
+    if (flow->buffer_id) {
+        nl_msg_put_u32(buf, OVS_TT_FLOW_ATTR_BUFFER_ID, flow->buffer_id);
+    }
+    if (flow->pkt_size) {
+        nl_msg_put_u32(buf, OVS_TT_FLOW_ATTR_PKT_SIZE, flow->pkt_size);
+    }
+}
+
+static void
+dpif_netlink_init_tt_flow_put(struct dpif_netlink *dpif,
+                           const struct dpif_tt_flow_put *put,
+                           struct dpif_netlink_tt_flow *request)
+{
+    dpif_netlink_tt_flow_init(request);
+    request->cmd = OVS_TT_FLOW_CMD_NEW;
+    request->port = put->port;
+    request->etype = put->etype;
+    request->flow_id = put->flow_id;
+    request->scheduled_time = put->scheduled_time;
+    request->period = put->period;
+    request->buffer_id = put->buffer_id;
+    request->pkt_size = put->pkt_size;
+    request->dp_ifindex = dpif->dp_ifindex;
+    //dpif_netlink_flow_init_ufid(request, put->ufid, false);
+}
+
+/* Executes, against 'dpif', up to the first 'n_ops' operations in 'ops'.
+ * Returns the number actually executed (at least 1, if 'n_ops' is
+ * positive). */
+static size_t
+dpif_netlink_tt_operate__(struct dpif_netlink *dpif,
+                       struct dpif_tt_op **ops, size_t n_ops)
+{   
+    enum { MAX_OPS = 50 };
+
+    struct op_auxdata {
+        struct nl_transaction txn;
+
+        struct ofpbuf request;
+        uint64_t request_stub[1024 / 8];
+
+        struct ofpbuf reply;
+        uint64_t reply_stub[1024 / 8];
+    } auxes[MAX_OPS];
+
+    struct nl_transaction *txnsp[MAX_OPS];
+    size_t i;
+
+    n_ops = MIN(n_ops, MAX_OPS);
+    for (i = 0; i < n_ops; i++) {
+        struct op_auxdata *aux = &auxes[i];
+        struct dpif_tt_op *op = ops[i];
+        struct dpif_tt_flow_put *put;
+        //struct dpif_tt_flow_del *del;
+        //struct dpif_tt_flow_get *get;
+        struct dpif_netlink_tt_flow flow;
+
+        ofpbuf_use_stub(&aux->request,
+                        aux->request_stub, sizeof aux->request_stub);
+        aux->txn.request = &aux->request;
+
+        ofpbuf_use_stub(&aux->reply, aux->reply_stub, sizeof aux->reply_stub);
+        aux->txn.reply = NULL;
+
+        switch (op->type) {
+        case DPIF_OP_TT_FLOW_PUT:
+            
+            put = &op->u.tt_flow_put;
+            dpif_netlink_init_tt_flow_put(dpif, put, &flow);
+            /*
+            if (put->stats) {
+                flow.nlmsg_flags |= NLM_F_ECHO;
+                aux->txn.reply = &aux->reply;
+            }*/
+            dpif_netlink_tt_flow_to_ofpbuf(&flow, &aux->request);
+            /*          
+            VLOG_WARN("dpif_netlink_tt_flow.cmd = %d", flow.cmd);
+            VLOG_WARN("dpif_netlink_tt_flow.dp_ifindex = %d", flow.dp_ifindex);
+            VLOG_WARN("dpif_netlink_tt_flow.port = %d", flow.port);
+            VLOG_WARN("dpif_netlink_tt_flow.etype = %d", flow.etype);
+            VLOG_WARN("dpif_netlink_tt_flow.flow_id = %d", flow.flow_id);
+            VLOG_WARN("dpif_netlink_tt_flow.scheduled_time = %d", flow.scheduled_time);
+            VLOG_WARN("dpif_netlink_tt_flow.period = %d", flow.period);
+            VLOG_WARN("dpif_netlink_tt_flow.buffer_id = %d", flow.buffer_id);
+            VLOG_WARN("dpif_netlink_tt_flow.pkt_size = %d", flow.pkt_size);
+            */
+            break;
+
+        case DPIF_OP_TT_FLOW_DEL:
+            /*
+            del = &op->u.flow_del;
+            dpif_netlink_init_tt_flow_del(dpif, del, &flow);
+            if (del->stats) {
+                flow.nlmsg_flags |= NLM_F_ECHO;
+                aux->txn.reply = &aux->reply;
+            }
+            dpif_netlink_tt_flow_to_ofpbuf(&flow, &aux->request);
+            */
+            break;
+                
+        case DPIF_OP_TT_FLOW_GET:
+            /*
+            get = &op->u.flow_get;
+            dpif_netlink_init_flow_get(dpif, get, &flow);
+            aux->txn.reply = get->buffer;
+            dpif_netlink_flow_to_ofpbuf(&flow, &aux->request);
+            */
+            break;
+
+        default:
+            OVS_NOT_REACHED();
+        }
+    }
+
+    for (i = 0; i < n_ops; i++) {
+        txnsp[i] = &auxes[i].txn;
+    }
+        
+    nl_transact_multiple(NETLINK_GENERIC, txnsp, n_ops);
+
+    for (i = 0; i < n_ops; i++) {
+        struct op_auxdata *aux = &auxes[i];
+        struct nl_transaction *txn = &auxes[i].txn;
+        struct dpif_tt_op *op = ops[i];
+        //struct dpif_tt_flow_put *put;
+        //struct dpif_tt_flow_del *del;
+        //struct dpif_tt_flow_get *get;
+
+        op->error = txn->error;
+
+        switch (op->type) {
+        case DPIF_OP_TT_FLOW_PUT:
+            /*
+            put = &op->u.flow_put;
+            if (put->stats) {
+                if (!op->error) {
+                    struct dpif_netlink_flow reply;
+
+                    op->error = dpif_netlink_tt_flow_from_ofpbuf(&reply,
+                                                              txn->reply);
+                    if (!op->error) {
+                        dpif_netlink_flow_get_stats(&reply, put->stats);
+                    }
+                }
+            }
+            */
+            break;
+
+        case DPIF_OP_TT_FLOW_DEL:
+            /*
+            del = &op->u.flow_del;
+            if (del->stats) {
+                if (!op->error) {
+                    struct dpif_netlink_flow reply;
+
+                    op->error = dpif_netlink_flow_from_ofpbuf(&reply,
+                                                              txn->reply);
+                    if (!op->error) {
+                        dpif_netlink_flow_get_stats(&reply, del->stats);
+                    }
+                }
+            }
+            */
+            break;
+
+        case DPIF_OP_TT_FLOW_GET:
+            /*
+            get = &op->u.flow_get;
+            if (!op->error) {
+                struct dpif_netlink_flow reply;
+
+                op->error = dpif_netlink_flow_from_ofpbuf(&reply, txn->reply);
+                if (!op->error) {
+                    dpif_netlink_flow_to_dpif_flow(&dpif->dpif, get->flow,
+                                                   &reply);
+                }
+            }
+            */
+            break;
+
+        default:
+            OVS_NOT_REACHED();
+        }
+
+        ofpbuf_uninit(&aux->request);
+        ofpbuf_uninit(&aux->reply);
+    }
+
+    return n_ops;
+}
+
+static void
+dpif_netlink_tt_operate(struct dpif *dpif_, struct dpif_tt_op **ops, size_t n_ops)
+{
+    struct dpif_netlink *dpif = dpif_netlink_cast(dpif_);
+
+    while (n_ops > 0) {
+        size_t chunk = dpif_netlink_tt_operate__(dpif, ops, n_ops);
+        ops += chunk;
+        n_ops -= chunk;
+    }
+}
+
 const struct dpif_class dpif_netlink_class = {
     "system",
     NULL,                       /* init */
@@ -2393,11 +2656,14 @@ const struct dpif_class dpif_netlink_class = {
     NULL,                       /* ct_dump_done */
     NULL,                       /* ct_flush */
 #endif
+    dpif_netlink_tt_operate,    /* tt_operate*/
 };
 
 static int
 dpif_netlink_init(void)
 {
+    VLOG_WARN("begin to lookup genl_family!");
+    
     static struct ovsthread_once once = OVSTHREAD_ONCE_INITIALIZER;
     static int error;
 
@@ -2418,6 +2684,14 @@ dpif_netlink_init(void)
         if (!error) {
             error = nl_lookup_genl_family(OVS_PACKET_FAMILY,
                                           &ovs_packet_family);
+        }
+        if (!error) {
+            error = nl_lookup_genl_family(OVS_TT_FAMILY, &ovs_tt_family);
+            if (error) {
+                VLOG_WARN("lookup %s genl_family failed!", OVS_TT_FAMILY);
+            } else {
+                VLOG_WARN("lookup %s: %d genl_family successed!", OVS_TT_FAMILY, ovs_tt_family);
+            }
         }
         if (!error) {
             error = nl_lookup_genl_mcgroup(OVS_VPORT_FAMILY, OVS_VPORT_MCGROUP,

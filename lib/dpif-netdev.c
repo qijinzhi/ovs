@@ -3888,6 +3888,7 @@ const struct dpif_class dpif_netdev_class = {
     NULL,                       /* ct_dump_next */
     NULL,                       /* ct_dump_done */
     NULL,                       /* ct_flush */
+    NULL,                       /* tt_table_add */  
 };
 
 static void
