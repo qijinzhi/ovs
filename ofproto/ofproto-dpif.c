@@ -5754,7 +5754,7 @@ ofproto_dpif_delete_internal_flow(struct ofproto_dpif *ofproto,
 }
 
 static enum ofperr 
-tt_flow_add(const struct ofproto *ofproto_, const struct ofputil_tt_table_mod *mod)
+tt_flow_add(const struct ofproto *ofproto_, const struct ofputil_tt_flow_mod_msg *mod)
 {
     struct ofproto_dpif *ofproto = ofproto_dpif_cast(ofproto_);
     dpif_tt_flow_put(ofproto->backer->dpif, 

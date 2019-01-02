@@ -9846,7 +9846,7 @@ ofputil_encode_get_async_config(const struct ofp_header *oh,
 
 enum ofperr 
 ofputil_decode_tt_table_mod(const struct ofp_header *oh,
-                            struct ofputil_tt_table_mod *ttm)
+                            struct ofputil_tt_flow_mod_msg *ttm)
 {
     struct onf_tt_flow_mod *tx_ttm;
     struct ofpbuf msg;
@@ -9859,7 +9859,6 @@ ofputil_decode_tt_table_mod(const struct ofp_header *oh,
     
     tx_ttm = ofpbuf_pull(&msg, sizeof *tx_ttm);
     /* tx_tt_table_mod --> ofputil_tt_table_mod */
-    ttm->command = tx_ttm->command;
     ttm->port = tx_ttm->port;
     ttm->etype = tx_ttm->etype;
     ttm->flow_id = tx_ttm->flow_id;
