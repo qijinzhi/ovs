@@ -2420,7 +2420,7 @@ static int ovs_tt_cmd_add(struct sk_buff *skb, struct genl_info *info)
 	
 	if (a[OVS_TT_FLOW_ATTR_ETYPE]) {
 		etype = *(int *)nla_data(a[OVS_TT_FLOW_ATTR_ETYPE]);
-		pr_info("I get the OVS_TT_FLOW_ATTR_PORT: %d\n", etype);
+		pr_info("I get the OVS_TT_FLOW_ATTR_ETYPE: %d\n", etype);
 	}
 	if (a[OVS_TT_FLOW_ATTR_FLOW_ID]) {
 		flow_id = *(int *)nla_data(a[OVS_TT_FLOW_ATTR_FLOW_ID]);
