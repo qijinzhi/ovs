@@ -50,6 +50,8 @@
 #include "timeval.h"
 #include "unixctl.h"
 #include "util.h"
+#include "openvswitch/vlog.h"
+#include "ofp-util.h"
 
 typedef int dpctl_command_handler(int argc, const char *argv[],
                                   struct dpctl_params *);
@@ -1212,6 +1214,43 @@ dpctl_del_flows(int argc, const char *argv[], struct dpctl_params *dpctl_p)
     return error;
 }
 
+/*
+static int
+dpctl_put_tt_flow(int argc, const char *argv[], struct dpctl_params *dpctl_p)
+{
+	int error;
+	struct dpif *dpif;
+	char *dp_name;
+	const char* tt_flow_s;
+	struct ofputil_tt_flow_mod_msg mod;
+	
+	dp_name = argc == 4 ? xstrdup(argv[1]) : get_one_dp(dpctl_p);
+    if (!dp_name) {
+        return EINVAL;
+    }
+    error = parsed_dpif_open(dp_name, false, &dpif);
+    free(dp_name);
+    if (error) {
+        dpctl_error(dpctl_p, error, "opening datapath");
+        return error;
+    }
+	
+	tt_flow_s = argv[argc - 1];
+	odp_tt_from_string(tt_flow_s, &mod);
+
+	dpif_tt_flow_put(dpif, mod.port, mod.etype, mod.flow_id, 
+					mod.scheduled_time, mod.period, mod.buffer_id, mod.pkt_size);
+	
+}
+
+static int
+dpctl_add_tt_flow(int argc, const char *argv[], struct dpctl_params *dpctl_p)
+{
+    return dpctl_put_tt_flow(argc, argv, dpctl_p);
+}
+
+*/
+
 static int
 dpctl_help(int argc OVS_UNUSED, const char *argv[] OVS_UNUSED,
            struct dpctl_params *dpctl_p)
@@ -1602,6 +1641,8 @@ static const struct dpctl_command all_commands[] = {
     { "flush-conntrack", "[dp] [zone=N]", 0, 2, dpctl_flush_conntrack },
     { "help", "", 0, INT_MAX, dpctl_help },
     { "list-commands", "", 0, INT_MAX, dpctl_list_commands },
+	
+//	{ "add-tt-flow", "add-tt-flow [dp] flow", 1, 2, dpctl_add_tt_flow },
 
     /* Undocumented commands for testing. */
     { "parse-actions", "actions", 1, INT_MAX, dpctl_parse_actions },
