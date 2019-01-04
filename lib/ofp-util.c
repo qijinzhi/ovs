@@ -9862,10 +9862,10 @@ ofputil_decode_tt_table_mod(const struct ofp_header *oh,
     ttm->port = tx_ttm->port;
     ttm->etype = tx_ttm->etype;
     ttm->flow_id = tx_ttm->flow_id;
-    ttm->scheduled_time = ntohs(tx_ttm->scheduled_time);
-    ttm->period = ntohs(tx_ttm->period);
-    ttm->buffer_id = ntohs(tx_ttm->buffer_id);
-    ttm->pkt_size = ntohs(tx_ttm->pkt_size);
+    ttm->scheduled_time = ntohl(tx_ttm->scheduled_time);
+    ttm->period = ntohl(tx_ttm->period);
+    ttm->buffer_id = ntohl(tx_ttm->buffer_id);
+    ttm->pkt_size = ntohl(tx_ttm->pkt_size);
     
     return 0;
 }

@@ -2239,7 +2239,8 @@ static int ovs_tt_cmd_add(struct sk_buff *skb, struct genl_info *info)
 	int pkt_size;
 	struct nlattr **a = info->attrs;
 	
-	pr_info("ovs_tt_cmd_add begin!\n");
+	ovs_lock();
+	pr_info("ovs_tt_cmd_add receive a tt flow<<<<<<<<\n");
 	
 	if (a[OVS_TT_FLOW_ATTR_PORT]) {
 		port = *(int *)nla_data(a[OVS_TT_FLOW_ATTR_PORT]);
@@ -2248,7 +2249,7 @@ static int ovs_tt_cmd_add(struct sk_buff *skb, struct genl_info *info)
 	
 	if (a[OVS_TT_FLOW_ATTR_ETYPE]) {
 		etype = *(int *)nla_data(a[OVS_TT_FLOW_ATTR_ETYPE]);
-		pr_info("I get the OVS_TT_FLOW_ATTR_PORT: %d\n", etype);
+		pr_info("I get the OVS_TT_FLOW_ATTR_ETYPE: %d\n", etype);
 	}
 	if (a[OVS_TT_FLOW_ATTR_FLOW_ID]) {
 		flow_id = *(int *)nla_data(a[OVS_TT_FLOW_ATTR_FLOW_ID]);
@@ -2270,7 +2271,7 @@ static int ovs_tt_cmd_add(struct sk_buff *skb, struct genl_info *info)
 		pkt_size = *(int *)nla_data(a[OVS_TT_FLOW_ATTR_PKT_SIZE]);
 		pr_info("I get the OVS_TT_FLOW_ATTR_PKT_SIZE: %d\n", pkt_size);
 	}
-	
+	ovs_unlock();
 	return 0;
 }
 

@@ -317,4 +317,5 @@ void odp_put_tunnel_action(const struct flow_tnl *tunnel,
 
 void odp_put_tnl_push_action(struct ofpbuf *odp_actions,
                              struct ovs_action_push_tnl *data);
+
 #endif /* odp-util.h */
