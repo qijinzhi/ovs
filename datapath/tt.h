@@ -1,3 +1,22 @@
+/*
+  * Copyright (c) 2018-2019 Tsinghua University, Inc.
+  *
+  * This program is free software; you can redistribute it and/or
+  * modify it under the terms of version 2 of the GNU General Public
+  * License as published by the Free Software Foundation.
+  *
+  * This program is distributed in the hope that it will be useful, but
+  * WITHOUT ANY WARRANTY; without even the implied warranty of
+  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+  * General Public License for more details.
+  *
+  * You should have received a copy of the GNU General Public License
+  * along with this program; if not, write to the Free Software
+  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
+  * 02110-1301, USA
+ */
+
+
 #ifndef TT_H
 #define TT_H 1
 
@@ -21,42 +40,48 @@
 
 #define SWAP(x, y) x = x^y; y = x^y; x = x^y;
 
-// TT报文头
-/**
-struct eth_tthdr {
-    unsigned char h_dest[ETH_ALEN]; //目的MAC地址
-    unsigned char h_source[ETH_ALEN]; //源MAC地址
-    __u16 h_proto ; //网络层所使用的协议类型
-    __u16 flow_id; //tt的flow_id
-    __u16 len; //报文的整体长度（包括mac、ip、udp头），不包括CRC
-};
-**/
-
 struct tt_header {
-    __u16 flow_id; //tt的flow_id
-    __u16 len; //报文的整体长度
+    u16 flow_id; /* tt flow_id */
+    u16 len; /* tt packet's length */
 };
 
-/**
+/** ===>>>
 	note:
 	假设控制器给的tt报文的flow_id都是从1开始依次增长，所以下面的实现过程直接用flow_id-1作为数组的索引
 	则在这种情况下，最大的flow_id即为tt_table->count
 	当对表项无论进行删除还是修改，都应该保证表中的flow_id让仍然是从1开始
 	之后开发的过程中，这部分可能需要进行修改
 **/
-//tt调度表
+/**
+  struct tt_table_item - tt schedule table item, 
+                         must be protected by rcu.
+  @flow_id: tt flow identifier.
+  @buffer_id: buffer to which this tt flow should be store.
+  @rcu: Rcu callback head of deferred destruction.
+  @len: tt packet's length
+  @period: the period of tt flow (ns).
+  @time: send time or receive time in current period (ns).
+ */
 struct tt_table_item {
-	__u16 flow_id;	//TT流标识
-	__u16 buffer_id;	//共享缓存的buffer id
-	__u32 circle;	 // 发送周期范围：0.5, 1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024(ms), 但是在此单位是ns
-	__u64 time;	//该端口接收或发送此flow的时刻（ns）
+	u16 flow_id;
+	u16 buffer_id;
 	struct rcu_head rcu;
-    __u16 len;	 // 报文长度
+    u16 len;
+	u64 period;
+	u64 time;
 };
 
+/**
+  struct tt_table - tt schedule table, 
+                    must be protected by rcu.
+  @rcu: Rcu callback head of deferred destruction.
+  @count: total number of tt flow in this tt_table.
+  @max: max tt_table size.
+  @tt_items: tt flow items.
+ */
 struct tt_table {
 	struct rcu_head rcu;
-	__u32 count, max;
+	u16 count, max;
 	struct tt_table_item* __rcu tt_items[];
 };
 

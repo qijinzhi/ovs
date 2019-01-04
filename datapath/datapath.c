@@ -314,7 +314,7 @@ static void ovs_dp_process_tt_packet(struct sk_buff *skb) {
 	getnstimeofday(&current_time);
 	global_time = global_time_read();
 	arrive_global_time = global_time - (TIMESPEC_TO_NSEC(current_time) - TIMESPEC_TO_NSEC(arrive_stamp));
-	offset_time =  do_div(arrive_global_time, tt_item->circle);
+	offset_time =  do_div(arrive_global_time, tt_item->period);
 	if (offset_time > tt_item->time + MAX_JITTER || offset_time < tt_item->time - MAX_JITTER) {
 		printk(KERN_ALERT "the flow arrive out of range: flow_id=>%d, %s %d \n", flow_id,__FUNCTION__, __LINE__);
 		kfree_skb(skb);
@@ -2409,15 +2409,31 @@ static int ovs_tt_cmd_add(struct sk_buff *skb, struct genl_info *info)
 	int period;
 	int buffer_id;
 	int pkt_size;
+
 	struct nlattr **a = info->attrs;
-	
+    struct vport *vport;
+    struct datapath *dp;
+    struct ovs_header *ovs_header = info->userhdr;
+    struct net *net = sock_net(skb->sk);
+    struct tt_table_item *tt_item;
+    struct tt_table *cur_tt_table;
+    int error = -EINVAL;
+
+    if (unlikely(!ovs_header)) {
+        pr_info("get ovs_header fail!\n");
+        goto error;
+    }
+    else {
+        pr_info("get ovs_header success!\n");
+        pr_info("get dp_ifindex: %d", ovs_header->dp_ifindex);
+    }
+
 	pr_info("ovs_tt_cmd_add begin!\n");
 	
 	if (a[OVS_TT_FLOW_ATTR_PORT]) {
 		port = *(int *)nla_data(a[OVS_TT_FLOW_ATTR_PORT]);
 		pr_info("I get the OVS_TT_FLOW_ATTR_PORT: %d\n", port);
 	}
-	
 	if (a[OVS_TT_FLOW_ATTR_ETYPE]) {
 		etype = *(int *)nla_data(a[OVS_TT_FLOW_ATTR_ETYPE]);
 		pr_info("I get the OVS_TT_FLOW_ATTR_ETYPE: %d\n", etype);
@@ -2443,7 +2459,53 @@ static int ovs_tt_cmd_add(struct sk_buff *skb, struct genl_info *info)
 		pr_info("I get the OVS_TT_FLOW_ATTR_PKT_SIZE: %d\n", pkt_size);
 	}
 	
+    tt_item = tt_table_item_alloc();
+    if (unlikely(!tt_item)) {
+        pr_info("alloc tt_item fail!\n");
+        goto error;
+    }
+
+    tt_item->flow_id = flow_id;
+    tt_item->buffer_id = buffer_id;
+    tt_item->period = period;
+    tt_item->time = scheduled_time;
+    tt_item->len = pkt_size;
+
+    ovs_lock();
+    dp = get_dp(net, ovs_header->dp_ifindex);
+    if (unlikely(!dp)) {
+        pr_info("get dp fail!\n");
+        goto  error_kfree_item;
+    }
+
+    vport = ovs_lookup_vport(dp, port);
+    if (unlikely(!vport)) {
+        pr_info("get vport %d fail!\n", port);
+        goto error_kfree_item;
+    }
+
+    if (etype == 0) {
+        cur_tt_table = rcu_dereference(vport->arrive_tt_table);
+        rcu_assign_pointer(cur_tt_table, tt_table_item_insert(cur_tt_table, tt_item));
+        rcu_assign_pointer(vport->arrive_tt_table, cur_tt_table);
+    }
+    else {
+        cur_tt_table = rcu_dereference(vport->send_tt_table);
+        rcu_assign_pointer(cur_tt_table, tt_table_item_insert(cur_tt_table, tt_item));
+        rcu_assign_pointer(vport->send_tt_table, cur_tt_table);
+    }
+    ovs_unlock();
+
 	return 0;
+error_unlock_ovs:
+    ovs_unlock();
+    return error;
+error_kfree_item:
+    kfree(tt_item);
+    ovs_unlock();
+    return error;
+error:
+    return error;
 }
 
 

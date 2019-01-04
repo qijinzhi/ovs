@@ -1,3 +1,21 @@
+/*
+  * Copyright (c) 2018-2019 Tsinghua University, Inc.
+  *
+  * This program is free software; you can redistribute it and/or
+  * modify it under the terms of version 2 of the GNU General Public
+  * License as published by the Free Software Foundation.
+  *
+  * This program is distributed in the hope that it will be useful, but
+  * WITHOUT ANY WARRANTY; without even the implied warranty of
+  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the GNU
+  * General Public License for more details.
+  *
+  * You should have received a copy of the GNU General Public License
+  * along with this program; if not, write to the Free Software
+  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
+  * 02110-1301, USA
+ */
+
 #include <linux/if_ether.h>
 #include <linux/ip.h>
 #include <linux/udp.h>
@@ -10,7 +28,7 @@ bool udp_port_is_tt(__be16 port) {
     return port == htons(TT_PORT);
 }
 
-// 以太网协议头类型为TT_ETH_ETYPE为TT报文
+/* if the ether type is TT_ETH_ETYPE, it is tt packet*/
 bool eth_p_tt(__be16 eth_type) {
     return eth_type == htons(ETH_P_TT);
 }
@@ -19,16 +37,20 @@ unsigned char *skb_tt_header(struct sk_buff *skb) {
     return skb_mac_header(skb) + skb->mac_len;
 }
 
-// 判断是否为TRDP报文
-// note：传入的skb结构体中，其skb->h、skb->nh、skb->mac指针都已经被指向了正确的位置，
-// 因为经过了extract_key的处理，所以我们只需要直接使用这些指针头，就可以定位到对应网络层的协议头
+/**
+* is_trdp_packet -- whether it is a TRDP packet
+* @skb: skb that was receive
+* In the skb struct，skb->h、skb->nh and skb->mac should be pointed to the correct place.
+* Must be called with extrace_key.
+*/
 bool is_trdp_packet(struct sk_buff *skb) {
     struct ethhdr *eth;
     struct iphdr *nh;
     struct udphdr *udp;
 
-    // 先检查是否为包含TT信息的TRDP报文
-    // 特征：传输层UDP、网络层为ipv4、UDP目的端口TT_PORT
+	/* check if the packet is TRDP packet
+	   features: transport layer is UDP, network layer is ipv4, 
+	   UDP destination port is TT_PORT*/
     eth = eth_hdr(skb);
     if (eth->h_proto != htons(ETH_P_IP))
         return 0;
@@ -44,9 +66,12 @@ bool is_trdp_packet(struct sk_buff *skb) {
     return 1;
 }
 
-// 判断是否为TT报文
-// note：传入的skb结构体中，其skb->h、skb->nh、skb->mac指针都已经被指向了正确的位置，
-// 因为经过了extract_key的处理，所以我们只需要直接使用这些指针头，就可以定位到对应网络层的协议头
+/**
+* is_tt_packet -- whether it is a TT packet
+* @skb: skb that was receive
+* In the skb struct，skb->h、skb->nh and skb->mac should be pointed to the correct place.
+* Must be called with extrace_key.
+*/
 bool is_tt_packet(struct sk_buff *skb) {
     struct ethhdr *eth;
     eth = eth_hdr(skb);
@@ -54,12 +79,13 @@ bool is_tt_packet(struct sk_buff *skb) {
     return eth_p_tt(eth->h_proto);
 }
 
-// 添加tt头
+/* add TT header*/
 static int push_tt(struct sk_buff *skb, const __be16* flow_id) {
     struct tt_header *tt_hdr;
     struct ethhdr *eth;
 
-    //skb_cow_head是看skb是否有足够的余量来装入tt头，不够会重新分配。
+	/*use skb_cow_head fuction to check whether has enough space 
+	  to add tt header in skb, if not, realloc the skb*/
     if (skb_cow_head(skb, TT_HLEN) < 0) {
         printk(KERN_ALERT "DEBUG: push tt fail!  %s %d \n", __FUNCTION__, __LINE__);
         return -ENOMEM;
@@ -255,7 +281,7 @@ struct tt_table* tt_table_item_insert(struct tt_table *cur_tt_table, const struc
 
 	item->flow_id = new->flow_id;
 	item->buffer_id = new->buffer_id;
-	item->circle = new->circle;
+	item->period = new->period;
 	item->len = new->len;
 	item->time = new->time;
     
@@ -386,7 +412,7 @@ int dispatch(struct vport* vport) {
         if (!tt_item)
             continue;
 
-        macro_period = lcm(macro_period, tt_item->circle);
+        macro_period = lcm(macro_period, tt_item->period);
     }
     
     size = 0;
@@ -396,7 +422,7 @@ int dispatch(struct vport* vport) {
             continue;
 
         temp_period = macro_period;
-        do_div(temp_period, tt_item->circle);
+        do_div(temp_period, tt_item->period);
         size += temp_period;
     }
 
@@ -423,7 +449,7 @@ int dispatch(struct vport* vport) {
         while(offset < macro_period){
             send_times[k] = offset; 
             flow_ids[k] = tt_item->flow_id;
-            offset += tt_item->circle;
+            offset += tt_item->period;
             k++;
         }
     }

@@ -247,25 +247,25 @@ static void test_tt_table(struct vport *p) {
     
     item1->flow_id = 0;
     item1->buffer_id = 0;
-    item1->circle = 2000000000;
+    item1->period = 2000000000;
     item1->len = 64;
     item1->time = 80000000;
 
     item2->flow_id = 1;
     item2->buffer_id = 1;
-    item2->circle = 4000000000;
+    item2->period = 4000000000;
     item2->len = 64;
     item2->time = 16000000;
 
     item3->flow_id = 0;
     item3->buffer_id = 0;
-    item3->circle = 2000000000;
+    item3->period = 2000000000;
     item3->len = 64;
     item3->time = 0;
     
     item4->flow_id = 1;
     item4->buffer_id = 1;
-    item4->circle = 4000000000;
+    item4->period = 4000000000;
     item4->len = 64;
     item4->time = 3000000000;
  
