@@ -2384,15 +2384,15 @@ dpif_netlink_tt_flow_to_ofpbuf(const struct dpif_netlink_tt_flow *flow,
     ovs_header = ofpbuf_put_uninit(buf, sizeof *ovs_header);
     ovs_header->dp_ifindex = flow->dp_ifindex;
     
-	if (flow) {
-		nl_msg_put_u8(buf, OVS_TT_FLOW_ATTR_PORT, flow->port);
-		nl_msg_put_u8(buf, OVS_TT_FLOW_ATTR_ETYPE, flow->etype);
-		nl_msg_put_u8(buf, OVS_TT_FLOW_ATTR_FLOW_ID, flow->flow_id);
-		nl_msg_put_u32(buf, OVS_TT_FLOW_ATTR_SCHEDULED_TIME, flow->scheduled_time);
-		nl_msg_put_u32(buf, OVS_TT_FLOW_ATTR_PERIOD, flow->period);
-		nl_msg_put_u32(buf, OVS_TT_FLOW_ATTR_BUFFER_ID, flow->buffer_id);
-		nl_msg_put_u32(buf, OVS_TT_FLOW_ATTR_PKT_SIZE, flow->pkt_size);
-	}
+    if (flow) {
+        nl_msg_put_u8(buf, OVS_TT_FLOW_ATTR_PORT, flow->port);
+        nl_msg_put_u8(buf, OVS_TT_FLOW_ATTR_ETYPE, flow->etype);
+        nl_msg_put_u8(buf, OVS_TT_FLOW_ATTR_FLOW_ID, flow->flow_id);
+        nl_msg_put_u32(buf, OVS_TT_FLOW_ATTR_SCHEDULED_TIME, flow->scheduled_time);
+        nl_msg_put_u32(buf, OVS_TT_FLOW_ATTR_PERIOD, flow->period);
+        nl_msg_put_u32(buf, OVS_TT_FLOW_ATTR_BUFFER_ID, flow->buffer_id);
+        nl_msg_put_u32(buf, OVS_TT_FLOW_ATTR_PKT_SIZE, flow->pkt_size);
+    }
 }
 
 static void
