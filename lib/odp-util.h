@@ -27,7 +27,6 @@
 #include "odp-netlink.h"
 #include "openflow/openflow.h"
 #include "util.h"
-#include "ofp-util.h"
 
 struct ds;
 struct nlattr;
@@ -319,5 +318,4 @@ void odp_put_tunnel_action(const struct flow_tnl *tunnel,
 void odp_put_tnl_push_action(struct ofpbuf *odp_actions,
                              struct ovs_action_push_tnl *data);
 
-//int odp_tt_from_string(const char *s, struct ofputil_tt_flow_mod_msg *mod);
 #endif /* odp-util.h */
