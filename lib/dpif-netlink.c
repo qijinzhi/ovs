@@ -2378,36 +2378,21 @@ dpif_netlink_tt_flow_to_ofpbuf(const struct dpif_netlink_tt_flow *flow,
                             struct ofpbuf *buf)
 {
     struct ovs_header *ovs_header;
-
-    VLOG_WARN("ovs_tt_family: %d.", ovs_tt_family);
-    
     nl_msg_put_genlmsghdr(buf, 0, ovs_tt_family, 
                           NLM_F_REQUEST, flow->cmd, OVS_TT_VERSION);
     
     ovs_header = ofpbuf_put_uninit(buf, sizeof *ovs_header);
     ovs_header->dp_ifindex = flow->dp_ifindex;
     
-    if (flow->port) {
-        nl_msg_put_u8(buf, OVS_TT_FLOW_ATTR_PORT, flow->port);
-    }
-    if (flow->etype) {
-        nl_msg_put_u8(buf, OVS_TT_FLOW_ATTR_ETYPE, flow->etype);
-    }
-    if (flow->flow_id) {
-        nl_msg_put_u8(buf, OVS_TT_FLOW_ATTR_FLOW_ID, flow->flow_id);
-    }
-    if (flow->scheduled_time) {
-        nl_msg_put_u32(buf, OVS_TT_FLOW_ATTR_SCHEDULED_TIME, flow->scheduled_time);
-    }
-    if (flow->period) {
-        nl_msg_put_u32(buf, OVS_TT_FLOW_ATTR_PERIOD, flow->period);
-    }
-    if (flow->buffer_id) {
-        nl_msg_put_u32(buf, OVS_TT_FLOW_ATTR_BUFFER_ID, flow->buffer_id);
-    }
-    if (flow->pkt_size) {
-        nl_msg_put_u32(buf, OVS_TT_FLOW_ATTR_PKT_SIZE, flow->pkt_size);
-    }
+	if (flow) {
+		nl_msg_put_u8(buf, OVS_TT_FLOW_ATTR_PORT, flow->port);
+		nl_msg_put_u8(buf, OVS_TT_FLOW_ATTR_ETYPE, flow->etype);
+		nl_msg_put_u8(buf, OVS_TT_FLOW_ATTR_FLOW_ID, flow->flow_id);
+		nl_msg_put_u32(buf, OVS_TT_FLOW_ATTR_SCHEDULED_TIME, flow->scheduled_time);
+		nl_msg_put_u32(buf, OVS_TT_FLOW_ATTR_PERIOD, flow->period);
+		nl_msg_put_u32(buf, OVS_TT_FLOW_ATTR_BUFFER_ID, flow->buffer_id);
+		nl_msg_put_u32(buf, OVS_TT_FLOW_ATTR_PKT_SIZE, flow->pkt_size);
+	}
 }
 
 static void
@@ -2477,7 +2462,9 @@ dpif_netlink_tt_operate__(struct dpif_netlink *dpif,
                 aux->txn.reply = &aux->reply;
             }*/
             dpif_netlink_tt_flow_to_ofpbuf(&flow, &aux->request);
-            /*          
+			
+			/*
+            VLOG_WARN("Send a tt_flow through netlink>>>>>>>>");          
             VLOG_WARN("dpif_netlink_tt_flow.cmd = %d", flow.cmd);
             VLOG_WARN("dpif_netlink_tt_flow.dp_ifindex = %d", flow.dp_ifindex);
             VLOG_WARN("dpif_netlink_tt_flow.port = %d", flow.port);
@@ -2488,6 +2475,7 @@ dpif_netlink_tt_operate__(struct dpif_netlink *dpif,
             VLOG_WARN("dpif_netlink_tt_flow.buffer_id = %d", flow.buffer_id);
             VLOG_WARN("dpif_netlink_tt_flow.pkt_size = %d", flow.pkt_size);
             */
+			
             break;
 
         case DPIF_OP_TT_FLOW_DEL:
@@ -2662,8 +2650,6 @@ const struct dpif_class dpif_netlink_class = {
 static int
 dpif_netlink_init(void)
 {
-    VLOG_WARN("begin to lookup genl_family!");
-    
     static struct ovsthread_once once = OVSTHREAD_ONCE_INITIALIZER;
     static int error;
 
