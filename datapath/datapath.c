@@ -2219,13 +2219,14 @@ struct genl_family dp_vport_genl_family = {
 
 /* tt */
 static const struct nla_policy tt_policy[] = {
-	[OVS_TT_FLOW_ATTR_PORT] = { .type = NLA_U8 },
-	[OVS_TT_FLOW_ATTR_ETYPE] = { .type = NLA_U8 },
-	[OVS_TT_FLOW_ATTR_FLOW_ID] = { .type = NLA_U8 },
-	[OVS_TT_FLOW_ATTR_SCHEDULED_TIME] = { .type = NLA_U32 },
-	[OVS_TT_FLOW_ATTR_PERIOD] = { .type = NLA_U32 },
+	[OVS_TT_FLOW_ATTR_PORT] = { .type = NLA_U32 },
+	[OVS_TT_FLOW_ATTR_ETYPE] = { .type = NLA_U32 },
+	[OVS_TT_FLOW_ATTR_FLOW_ID] = { .type = NLA_U32 },
+	[OVS_TT_FLOW_ATTR_BASE_OFFSET] = { .type = NLA_U64 },
+	[OVS_TT_FLOW_ATTR_PERIOD] = { .type = NLA_U64 },
 	[OVS_TT_FLOW_ATTR_BUFFER_ID] = { .type = NLA_U32 },
-	[OVS_TT_FLOW_ATTR_PKT_SIZE] = { .type = NLA_U32 },
+	[OVS_TT_FLOW_ATTR_PACKET_SIZE] = { .type = NLA_U32 },
+	[OVS_TT_FLOW_ATTR_EXECUTE_TIME] = { .type = NLA_U64 },
 };
 
 static int ovs_tt_cmd_add(struct sk_buff *skb, struct genl_info *info)
@@ -2233,43 +2234,48 @@ static int ovs_tt_cmd_add(struct sk_buff *skb, struct genl_info *info)
 	int port;
 	int etype;
 	int flow_id;
-	int scheduled_time;
+	int base_offset;
 	int period;
 	int buffer_id;
-	int pkt_size;
+	int packet_size;
+	int execute_time;
 	struct nlattr **a = info->attrs;
 	
 	ovs_lock();
 	pr_info("ovs_tt_cmd_add receive a tt flow<<<<<<<<\n");
 	
 	if (a[OVS_TT_FLOW_ATTR_PORT]) {
-		port = *(int *)nla_data(a[OVS_TT_FLOW_ATTR_PORT]);
+		port = *(unsigned int *)nla_data(a[OVS_TT_FLOW_ATTR_PORT]);
 		pr_info("I get the OVS_TT_FLOW_ATTR_PORT: %d\n", port);
 	}
 	
 	if (a[OVS_TT_FLOW_ATTR_ETYPE]) {
-		etype = *(int *)nla_data(a[OVS_TT_FLOW_ATTR_ETYPE]);
+		etype = *(unsigned int *)nla_data(a[OVS_TT_FLOW_ATTR_ETYPE]);
 		pr_info("I get the OVS_TT_FLOW_ATTR_ETYPE: %d\n", etype);
 	}
 	if (a[OVS_TT_FLOW_ATTR_FLOW_ID]) {
-		flow_id = *(int *)nla_data(a[OVS_TT_FLOW_ATTR_FLOW_ID]);
+		flow_id = *(unsigned int *)nla_data(a[OVS_TT_FLOW_ATTR_FLOW_ID]);
 		pr_info("I get the OVS_TT_FLOW_ATTR_FLOW_ID: %d\n", flow_id);
 	}
-	if (a[OVS_TT_FLOW_ATTR_SCHEDULED_TIME]) {
-		scheduled_time = *(int *)nla_data(a[OVS_TT_FLOW_ATTR_SCHEDULED_TIME]);
-		pr_info("I get the OVS_TT_FLOW_ATTR_SCHEDULED_TIME: %d\n", scheduled_time);
+	if (a[OVS_TT_FLOW_ATTR_BASE_OFFSET]) {
+		base_offset = *(unsigned long long *)nla_data(a[OVS_TT_FLOW_ATTR_BASE_OFFSET]);
+		pr_info("I get the OVS_TT_FLOW_ATTR_BASE_OFFSET: %d\n", base_offset);
 	}
 	if (a[OVS_TT_FLOW_ATTR_PERIOD]) {
-		period = *(int *)nla_data(a[OVS_TT_FLOW_ATTR_PERIOD]);
+		period = *(unsigned long long *)nla_data(a[OVS_TT_FLOW_ATTR_PERIOD]);
 		pr_info("I get the OVS_TT_FLOW_ATTR_PERIOD: %d\n", period);
 	}
 	if (a[OVS_TT_FLOW_ATTR_BUFFER_ID]) {
-		buffer_id = *(int *)nla_data(a[OVS_TT_FLOW_ATTR_BUFFER_ID]);
+		buffer_id = *(unsigned int *)nla_data(a[OVS_TT_FLOW_ATTR_BUFFER_ID]);
 		pr_info("I get the OVS_TT_FLOW_ATTR_BUFFER_ID: %d\n", buffer_id);
 	}
-	if (a[OVS_TT_FLOW_ATTR_PKT_SIZE]) {
-		pkt_size = *(int *)nla_data(a[OVS_TT_FLOW_ATTR_PKT_SIZE]);
-		pr_info("I get the OVS_TT_FLOW_ATTR_PKT_SIZE: %d\n", pkt_size);
+	if (a[OVS_TT_FLOW_ATTR_PACKET_SIZE]) {
+		packet_size = *(int *)nla_data(a[OVS_TT_FLOW_ATTR_PACKET_SIZE]);
+		pr_info("I get the OVS_TT_FLOW_ATTR_PACKET_SIZE: %d\n", packet_size);
+	}
+	if (a[OVS_TT_FLOW_ATTR_EXECUTE_TIME]) {
+		execute_time = *(int *)nla_data(a[OVS_TT_FLOW_ATTR_EXECUTE_TIME]);
+		pr_info("I get the OVS_TT_FLOW_ATTR_EXECUTE_TIME: %d\n", execute_time);
 	}
 	ovs_unlock();
 	return 0;
