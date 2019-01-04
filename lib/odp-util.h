@@ -27,7 +27,6 @@
 #include "odp-netlink.h"
 #include "openflow/openflow.h"
 #include "util.h"
-#include "ofp-util.h"
 
 struct ds;
 struct nlattr;

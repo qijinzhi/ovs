@@ -2463,7 +2463,7 @@ dpif_netlink_tt_operate__(struct dpif_netlink *dpif,
             }*/
             dpif_netlink_tt_flow_to_ofpbuf(&flow, &aux->request);
 			
-			/*
+            /*
             VLOG_WARN("Send a tt_flow through netlink>>>>>>>>");          
             VLOG_WARN("dpif_netlink_tt_flow.cmd = %d", flow.cmd);
             VLOG_WARN("dpif_netlink_tt_flow.dp_ifindex = %d", flow.dp_ifindex);
