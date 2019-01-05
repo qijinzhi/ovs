@@ -247,4 +247,5 @@ static inline struct rtable *ovs_tunnel_route_lookup(struct net *net,
 }
 
 void ovs_vport_send(struct vport *vport, struct sk_buff *skb);
+void ovs_vport_hrtimer_init(struct vport* vport);
 #endif /* vport.h */

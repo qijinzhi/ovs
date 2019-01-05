@@ -23,12 +23,12 @@
 #include <linux/types.h>
 #include <linux/skbuff.h>
 
-#define TT_FLOW_ID_MAX  1024    /* max flow id */
+#define TT_FLOW_ID_MAX  1024	/* max flow id */
 #define TT_PORT 63000   /* tt flow dest port */
 #define ETH_P_TT 0x88D7 /* tt flow ethernet type */
 
 #define TT_HLEN 4   /* tt header length */
-#define TT_TABLE_SIZE_MIN 16    /* minimum size of tt_table */
+#define TT_TABLE_SIZE_MIN 16	/* minimum size of tt_table */
 #define TT_BUFFER_SIZE 4096 /* one flow one buffer */
 #define MAX_JITTER 100000
 #define NSEC_PER_SECOND 1000000000
@@ -36,13 +36,13 @@
 #define NSEC_PER_USECOND 1000
 
 #define TIMESPEC_TO_NSEC(time_spec) \
-    (time_spec.tv_sec * (__u64)NSEC_PER_SECOND + time_spec.tv_nsec)
+	(time_spec.tv_sec * (u64)NSEC_PER_SECOND + time_spec.tv_nsec)
 
 #define SWAP(x, y) x = x^y; y = x^y; x = x^y;
 
 struct tt_header {
-    u16 flow_id; /* tt flow_id */
-    u16 len; /* tt packet's length */
+	u16 flow_id; /* tt flow_id */
+	u16 len; /* tt packet's length */
 };
 
 /** ===>>>
@@ -54,7 +54,7 @@ struct tt_header {
 **/
 /**
   struct tt_table_item - tt schedule table item, 
-                         must be protected by rcu.
+						 must be protected by rcu.
   @flow_id: tt flow identifier.
   @buffer_id: buffer to which this tt flow should be store.
   @rcu: Rcu callback head of deferred destruction.
@@ -66,14 +66,14 @@ struct tt_table_item {
 	u16 flow_id;
 	u16 buffer_id;
 	struct rcu_head rcu;
-    u16 len;
+	u16 len;
 	u64 period;
 	u64 time;
 };
 
 /**
   struct tt_table - tt schedule table, 
-                    must be protected by rcu.
+					must be protected by rcu.
   @rcu: Rcu callback head of deferred destruction.
   @count: total number of tt flow in this tt_table.
   @max: max tt_table size.
@@ -86,15 +86,15 @@ struct tt_table {
 };
 
 struct tt_send_cache {
-    __u64 *send_times;
-    __u16 *flow_ids;
-    __u16 size;
+	u64 *send_times;
+	u16 *flow_ids;
+	u16 size;
 };
 
 struct tt_send_info {
-    __u64 macro_period;
-    __u32 advance_time;
-    struct tt_send_cache send_cache; 
+	u64 macro_period;
+	u64 advance_time;
+	struct tt_send_cache send_cache; 
 };
 
 /* tt operation */
@@ -116,7 +116,7 @@ struct tt_table* tt_table_delete_item(struct tt_table* cur_tt_table, __be16 flow
 struct tt_table* tt_table_item_insert(struct tt_table *cur_tt_table, const struct tt_table_item *new);
 
 /* tt send info */
-__u64 global_time_read(void);
+u64 global_time_read(void);
 int dispatch(struct vport* vport);
-void get_next_time(struct vport *vport, __u64 cur_time, __u64 *wait_time, __u16 *flow_id, __u64 *send_time);
+void get_next_time(struct vport *vport, u64 cur_time, u64 *wait_time, u16 *flow_id, u64 *send_time);
 #endif

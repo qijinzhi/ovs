@@ -2405,7 +2405,7 @@ static int ovs_tt_cmd_add(struct sk_buff *skb, struct genl_info *info)
 	int port;
 	int etype;
 	int flow_id;
-	int scheduled_time;
+	int schedule_time;
 	int period;
 	int buffer_id;
 	int pkt_size;
@@ -2430,46 +2430,68 @@ static int ovs_tt_cmd_add(struct sk_buff *skb, struct genl_info *info)
 
 	pr_info("ovs_tt_cmd_add begin!\n");
 	
-	if (a[OVS_TT_FLOW_ATTR_PORT]) {
-		port = *(int *)nla_data(a[OVS_TT_FLOW_ATTR_PORT]);
-		pr_info("I get the OVS_TT_FLOW_ATTR_PORT: %d\n", port);
-	}
-	if (a[OVS_TT_FLOW_ATTR_ETYPE]) {
-		etype = *(int *)nla_data(a[OVS_TT_FLOW_ATTR_ETYPE]);
-		pr_info("I get the OVS_TT_FLOW_ATTR_ETYPE: %d\n", etype);
-	}
-	if (a[OVS_TT_FLOW_ATTR_FLOW_ID]) {
-		flow_id = *(int *)nla_data(a[OVS_TT_FLOW_ATTR_FLOW_ID]);
-		pr_info("I get the OVS_TT_FLOW_ATTR_FLOW_ID: %d\n", flow_id);
-	}
-	if (a[OVS_TT_FLOW_ATTR_SCHEDULED_TIME]) {
-		scheduled_time = *(int *)nla_data(a[OVS_TT_FLOW_ATTR_SCHEDULED_TIME]);
-		pr_info("I get the OVS_TT_FLOW_ATTR_SCHEDULED_TIME: %d\n", scheduled_time);
-	}
-	if (a[OVS_TT_FLOW_ATTR_PERIOD]) {
-		period = *(int *)nla_data(a[OVS_TT_FLOW_ATTR_PERIOD]);
-		pr_info("I get the OVS_TT_FLOW_ATTR_PERIOD: %d\n", period);
-	}
-	if (a[OVS_TT_FLOW_ATTR_BUFFER_ID]) {
-		buffer_id = *(int *)nla_data(a[OVS_TT_FLOW_ATTR_BUFFER_ID]);
-		pr_info("I get the OVS_TT_FLOW_ATTR_BUFFER_ID: %d\n", buffer_id);
-	}
-	if (a[OVS_TT_FLOW_ATTR_PKT_SIZE]) {
-		pkt_size = *(int *)nla_data(a[OVS_TT_FLOW_ATTR_PKT_SIZE]);
-		pr_info("I get the OVS_TT_FLOW_ATTR_PKT_SIZE: %d\n", pkt_size);
-	}
-	
     tt_item = tt_table_item_alloc();
     if (unlikely(!tt_item)) {
         pr_info("alloc tt_item fail!\n");
         goto error;
     }
 
+	if (a[OVS_TT_FLOW_ATTR_PORT]) {
+		port = *(int *)nla_data(a[OVS_TT_FLOW_ATTR_PORT]);
+		pr_info("I get the OVS_TT_FLOW_ATTR_PORT: %d\n", port);
+	}
+    else
+		goto error_kfree_item;
+
+	if (a[OVS_TT_FLOW_ATTR_ETYPE]) {
+		etype = *(int *)nla_data(a[OVS_TT_FLOW_ATTR_ETYPE]);
+		pr_info("I get the OVS_TT_FLOW_ATTR_ETYPE: %d\n", etype);
+	}
+    else
+		goto error_kfree_item;
+
+	if (a[OVS_TT_FLOW_ATTR_FLOW_ID]) {
+		flow_id = *(int *)nla_data(a[OVS_TT_FLOW_ATTR_FLOW_ID]);
+		pr_info("I get the OVS_TT_FLOW_ATTR_FLOW_ID: %d\n", flow_id);
+	}
+    else
+		goto error_kfree_item;
+
+	if (a[OVS_TT_FLOW_ATTR_SCHEDULED_TIME]) {
+		schedule_time = *(int *)nla_data(a[OVS_TT_FLOW_ATTR_SCHEDULED_TIME]);
+		pr_info("I get the OVS_TT_FLOW_ATTR_SCHEDULED_TIME: %d\n", schedule_time);
+	}
+    else
+		goto error_kfree_item;
+
+	if (a[OVS_TT_FLOW_ATTR_PERIOD]) {
+		period = *(int *)nla_data(a[OVS_TT_FLOW_ATTR_PERIOD]);
+		pr_info("I get the OVS_TT_FLOW_ATTR_PERIOD: %d\n", period);
+	}
+    else
+        goto error_kfree_item;
+
+	if (a[OVS_TT_FLOW_ATTR_BUFFER_ID]) {
+		buffer_id = *(int *)nla_data(a[OVS_TT_FLOW_ATTR_BUFFER_ID]);
+		pr_info("I get the OVS_TT_FLOW_ATTR_BUFFER_ID: %d\n", buffer_id);
+	}
+    else
+		goto error_kfree_item;
+
+	if (a[OVS_TT_FLOW_ATTR_PKT_SIZE]) {
+		pkt_size = *(int *)nla_data(a[OVS_TT_FLOW_ATTR_PKT_SIZE]);
+		pr_info("I get the OVS_TT_FLOW_ATTR_PKT_SIZE: %d\n", pkt_size);
+	}
+	else 
+		goto error_kfree_item;
+
+
     tt_item->flow_id = flow_id;
     tt_item->buffer_id = buffer_id;
-    tt_item->period = period;
-    tt_item->time = scheduled_time;
+    tt_item->period = period; //test
+    tt_item->time = schedule_time;
     tt_item->len = pkt_size;
+    //pr_info("tt_item->period: %llu", tt_item->period);
 
     ovs_lock();
     dp = get_dp(net, ovs_header->dp_ifindex);
@@ -2484,7 +2506,7 @@ static int ovs_tt_cmd_add(struct sk_buff *skb, struct genl_info *info)
         goto error_kfree_item;
     }
 
-    if (etype == 0) {
+    if (etype == 1) {
         cur_tt_table = rcu_dereference(vport->arrive_tt_table);
         rcu_assign_pointer(cur_tt_table, tt_table_item_insert(cur_tt_table, tt_item));
         rcu_assign_pointer(vport->arrive_tt_table, cur_tt_table);
@@ -2493,13 +2515,22 @@ static int ovs_tt_cmd_add(struct sk_buff *skb, struct genl_info *info)
         cur_tt_table = rcu_dereference(vport->send_tt_table);
         rcu_assign_pointer(cur_tt_table, tt_table_item_insert(cur_tt_table, tt_item));
         rcu_assign_pointer(vport->send_tt_table, cur_tt_table);
+        // test
+        /**
+        if (flow_id == 1) {
+            if (unlikely(dispatch(vport))) { 
+				pr_info("dispatch send info fail!\n");
+			}
+			else {
+				vport->send_info->advance_time = 200;
+				ovs_vport_hrtimer_init(vport);
+			}
+        }
+        **/
     }
     ovs_unlock();
 
 	return 0;
-error_unlock_ovs:
-    ovs_unlock();
-    return error;
 error_kfree_item:
     kfree(tt_item);
     ovs_unlock();
@@ -2507,7 +2538,6 @@ error_kfree_item:
 error:
     return error;
 }
-
 
 static struct genl_ops dp_tt_genl_ops[] = {
 	{	.cmd = OVS_TT_FLOW_CMD_NEW,
