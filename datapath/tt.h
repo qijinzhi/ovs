@@ -58,17 +58,17 @@ struct tt_header {
   @flow_id: tt flow identifier.
   @buffer_id: buffer to which this tt flow should be store.
   @rcu: Rcu callback head of deferred destruction.
-  @len: tt packet's length
+  @packet_size: tt packet's length
   @period: the period of tt flow (ns).
-  @time: send time or receive time in current period (ns).
+  @base_offset: send time or receive time in current period (ns).
  */
 struct tt_table_item {
 	u16 flow_id;
 	u16 buffer_id;
 	struct rcu_head rcu;
-	u16 len;
+	u16 packet_size;
 	u64 period;
-	u64 time;
+	u64 base_offset;
 };
 
 /**

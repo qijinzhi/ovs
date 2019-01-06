@@ -263,36 +263,32 @@ void ovs_dp_detach_port(struct vport *p)
 	ovs_vport_del(p);
 }
 
-// tt报文流程的处理
-// skb是一个tt格式的报文
-static void ovs_dp_process_tt_packet(struct sk_buff *skb) {
+static void ovs_dp_process_tt_packet(struct sk_buff *skb) 
+{
 	struct vport *p = OVS_CB(skb)->input_vport;
 	struct datapath *dp = p->dp;
 	struct timespec arrive_stamp;
 	struct tt_table* arrive_tt_table;
 	struct tt_header* tthdr;
 	struct tt_table_item* tt_item;
-	//struct tt_table* send_tt_table;
 	struct timespec current_time;
 	int err;
-	__u64 global_time;
-	__u64 arrive_global_time;
-	__u64 offset_time;
-	__u16 flow_id;
+	u64 global_time;
+	u64 arrive_global_time;
+	u64 offset_time;
+	u16 flow_id;
 
 	if (!(skb)->tstamp.tv64)
-		printk(KERN_ALERT "DEBUG: get tstamp error %s %d \n", __FUNCTION__, __LINE__);
+		pr_info("ERROR: get tstamp error.\n");
 
-	//do_gettimeofday(&arrive_stamp);
-	//printk(KERN_ALERT "DEBUG: arrive_stamp: %lld : %lld %s %d \n", arrive_stamp.tv_sec, arrive_stamp.tv_usec, __FUNCTION__, __LINE__);
-	//1. 取出skb的时间戳和flow_id
+	/* extract skb timestamp and flow id */
 	skb_get_timestampns(skb, &arrive_stamp);
 	printk(KERN_ALERT "DEBUG: dp features %u arrive_stamp=>%ld: %ld %s %d \n", 
 			dp->user_features, arrive_stamp.tv_sec, arrive_stamp.tv_nsec, __FUNCTION__, __LINE__);
 	
 	tthdr = (struct tt_header*)skb_tt_header(skb);
 	if (!tthdr) {
-		printk(KERN_ALERT "DEBUG: get tt header error %s %d \n", __FUNCTION__, __LINE__);
+		pr_info("ERROR: get tt header error.\n");
 		return;
 	}
 	flow_id = tthdr->flow_id;
@@ -307,14 +303,17 @@ static void ovs_dp_process_tt_packet(struct sk_buff *skb) {
 	tt_item = tt_table_lookup(arrive_tt_table, flow_id);
 	if (tt_item)
 		printk(KERN_ALERT "arrive_table: flow_id=>%d, buffer_id=>%d, length=>%d, %s %d \n", 
-			tt_item->flow_id, tt_item->buffer_id, tt_item->len,__FUNCTION__, __LINE__);
+			tt_item->flow_id, tt_item->buffer_id, tt_item->packet_size,__FUNCTION__, __LINE__);
 	
-	// 比对时间
+	/* compare arrive timestamp
+     * skb arrive timestamp should less or equal teh timestap in arrivte_tt_table 
+     */
 	/**
 	getnstimeofday(&current_time);
 	global_time = global_time_read();
 	arrive_global_time = global_time - (TIMESPEC_TO_NSEC(current_time) - TIMESPEC_TO_NSEC(arrive_stamp));
-	offset_time =  do_div(arrive_global_time, tt_item->period);
+	//offset_time =  do_div(arrive_global_time, tt_item->period);
+	offset_time =  arrive_global_time % tt_item->period;
 	if (offset_time > tt_item->time + MAX_JITTER || offset_time < tt_item->time - MAX_JITTER) {
 		printk(KERN_ALERT "the flow arrive out of range: flow_id=>%d, %s %d \n", flow_id,__FUNCTION__, __LINE__);
 		kfree_skb(skb);
@@ -345,68 +344,6 @@ static void ovs_dp_process_tt_packet(struct sk_buff *skb) {
 		printk(KERN_ALERT "DEBUG: insert into tt_bufer, dp feautres %d vport_id %u flow id %u %s %d \n", 
 				dp->user_features, p->port_no, flow_id, __FUNCTION__, __LINE__);
 	}
-
-	/**
-	// test, 从源端口发出TT报文和UDRP报文
-	send_tt_table = ovsl_dereference(p->send_tt_table);
-	tt_item = tt_table_lookup(send_tt_table, flow_id);
-	if (tt_item)
-		printk(KERN_ALERT "send_table: flow_id=>%d, buffer_id=>%d, length=>%d, %s %d \n", 
-			tt_item->flow_id, tt_item->buffer_id, tt_item->len,__FUNCTION__, __LINE__);
-   
-	// 发出tt报文
-	struct vport *vport;
-	struct hlist_head *head;
-	int i;
-	
-	for (i=0; i<DP_VPORT_HASH_BUCKETS; i++) {
-		if (&dp->ports[i] != NULL) {
-			head = &dp->ports[i];
-
-			hlist_for_each_entry_rcu(vport, head, dp_hash_node) {
-				if (vport->port_no != p->port_no) {
-					struct sk_buff *out_skb2 = skb_clone(skb, GFP_ATOMIC);
-					ovs_vport_send(vport, out_skb2);
-					printk(KERN_ALERT "DEBUG: send packet out to port: port no: %d %s %d \n", vport->port_no, __FUNCTION__, __LINE__);
-				}
-			}
-		}
-	}
-	
-	err = tt_to_trdp(skb); //转化为trdp数据报文
-	if (err) {
-		printk(KERN_ALERT "DEBUG: tt to trdp failed! %s %d \n", __FUNCTION__, __LINE__);
-		return;
-	} 
-
-	printk(KERN_ALERT "DEBUG: port no: %d %s %d \n", p->port_no, __FUNCTION__, __LINE__);	
-	//struct sk_buff *out_skb2 = skb_clone(skb, GFP_ATOMIC);
-	//ovs_vport_send(p, out_skb2);
-	
-
-	// 发出udp报文
-	for (i=0; i<DP_VPORT_HASH_BUCKETS; i++) {
-		if (&dp->ports[i] != NULL) {
-			head = &dp->ports[i];
-
-			hlist_for_each_entry_rcu(vport, head, dp_hash_node) {
-				if (vport->port_no != p->port_no) {
-					struct sk_buff *out_skb2 = skb_clone(skb, GFP_ATOMIC);
-					ovs_vport_send(vport, out_skb2);
-					printk(KERN_ALERT "DEBUG: send packet out to port: port no: %d %s %d \n", vport->port_no, __FUNCTION__, __LINE__);
-				}
-			}
-		}
-	}
-	//3. 判断tt报文到达时间是否合理
-
-	//4. 将tt报文放入到对应的buffer中
-	
-	// *** 测试情况下的处理
-	//5. sleep一下
-
-	//6. 从buffer中获得要发送的报文，将其进行发送
-	**/
 }
 
 /* Must be called with rcu_read_lock. */
@@ -1763,7 +1700,6 @@ static int ovs_dp_cmd_new(struct sk_buff *skb, struct genl_info *info)
 	
 	// tt_buffer initialize
 	dp->tt_buffer = kzalloc(TT_BUFFER_SIZE * sizeof(struct sk_buff*), GFP_KERNEL);
-	printk(KERN_ALERT "DEBUG: dp->tt_buffer init  %s %d \n", __FUNCTION__, __LINE__);
 
 	/* Set up our datapath device. */
 	parms.name = nla_data(a[OVS_DP_ATTR_NAME]);
@@ -2391,24 +2327,21 @@ struct genl_family dp_vport_genl_family = {
 
 /* tt */
 static const struct nla_policy tt_policy[] = {
-	[OVS_TT_FLOW_ATTR_PORT] = { .type = NLA_U8 },
-	[OVS_TT_FLOW_ATTR_ETYPE] = { .type = NLA_U8 },
-	[OVS_TT_FLOW_ATTR_FLOW_ID] = { .type = NLA_U8 },
-	[OVS_TT_FLOW_ATTR_SCHEDULED_TIME] = { .type = NLA_U32 },
-	[OVS_TT_FLOW_ATTR_PERIOD] = { .type = NLA_U32 },
+	[OVS_TT_FLOW_ATTR_PORT] = { .type = NLA_U32 },
+	[OVS_TT_FLOW_ATTR_ETYPE] = { .type = NLA_U32 },
+	[OVS_TT_FLOW_ATTR_FLOW_ID] = { .type = NLA_U32 },
+	[OVS_TT_FLOW_ATTR_BASE_OFFSET] = { .type = NLA_U64 },
+	[OVS_TT_FLOW_ATTR_PERIOD] = { .type = NLA_U64 },
 	[OVS_TT_FLOW_ATTR_BUFFER_ID] = { .type = NLA_U32 },
-	[OVS_TT_FLOW_ATTR_PKT_SIZE] = { .type = NLA_U32 },
+	[OVS_TT_FLOW_ATTR_PACKET_SIZE] = { .type = NLA_U32 },
+	[OVS_TT_FLOW_ATTR_EXECUTE_TIME] = { .type = NLA_U64 },
 };
 
 static int ovs_tt_cmd_add(struct sk_buff *skb, struct genl_info *info)
 {
-	int port;
-	int etype;
-	int flow_id;
-	int schedule_time;
-	int period;
-	int buffer_id;
-	int pkt_size;
+	u32 port;
+	u32 etype;
+	u64 execute_time;
 
 	struct nlattr **a = info->attrs;
     struct vport *vport;
@@ -2424,12 +2357,9 @@ static int ovs_tt_cmd_add(struct sk_buff *skb, struct genl_info *info)
         goto error;
     }
     else {
-        pr_info("get ovs_header success!\n");
         pr_info("get dp_ifindex: %d", ovs_header->dp_ifindex);
     }
 
-	pr_info("ovs_tt_cmd_add begin!\n");
-	
     tt_item = tt_table_item_alloc();
     if (unlikely(!tt_item)) {
         pr_info("alloc tt_item fail!\n");
@@ -2437,61 +2367,60 @@ static int ovs_tt_cmd_add(struct sk_buff *skb, struct genl_info *info)
     }
 
 	if (a[OVS_TT_FLOW_ATTR_PORT]) {
-		port = *(int *)nla_data(a[OVS_TT_FLOW_ATTR_PORT]);
+		port = *(u32 *)nla_data(a[OVS_TT_FLOW_ATTR_PORT]);
 		pr_info("I get the OVS_TT_FLOW_ATTR_PORT: %d\n", port);
 	}
     else
 		goto error_kfree_item;
 
 	if (a[OVS_TT_FLOW_ATTR_ETYPE]) {
-		etype = *(int *)nla_data(a[OVS_TT_FLOW_ATTR_ETYPE]);
+		etype = *(u32 *)nla_data(a[OVS_TT_FLOW_ATTR_ETYPE]);
 		pr_info("I get the OVS_TT_FLOW_ATTR_ETYPE: %d\n", etype);
 	}
     else
 		goto error_kfree_item;
 
 	if (a[OVS_TT_FLOW_ATTR_FLOW_ID]) {
-		flow_id = *(int *)nla_data(a[OVS_TT_FLOW_ATTR_FLOW_ID]);
-		pr_info("I get the OVS_TT_FLOW_ATTR_FLOW_ID: %d\n", flow_id);
+		tt_item->flow_id = *(u32 *)nla_data(a[OVS_TT_FLOW_ATTR_FLOW_ID]);
+		pr_info("I get the OVS_TT_FLOW_ATTR_FLOW_ID: %d\n", tt_item->flow_id);
 	}
     else
 		goto error_kfree_item;
 
-	if (a[OVS_TT_FLOW_ATTR_SCHEDULED_TIME]) {
-		schedule_time = *(int *)nla_data(a[OVS_TT_FLOW_ATTR_SCHEDULED_TIME]);
-		pr_info("I get the OVS_TT_FLOW_ATTR_SCHEDULED_TIME: %d\n", schedule_time);
+	if (a[OVS_TT_FLOW_ATTR_BASE_OFFSET]) {
+		tt_item->base_offset = *(u64 *)nla_data(a[OVS_TT_FLOW_ATTR_BASE_OFFSET]);
+		pr_info("I get the OVS_TT_FLOW_ATTR_BASE_OFFSET: %llu\n", tt_item->base_offset);
 	}
     else
 		goto error_kfree_item;
 
 	if (a[OVS_TT_FLOW_ATTR_PERIOD]) {
-		period = *(int *)nla_data(a[OVS_TT_FLOW_ATTR_PERIOD]);
-		pr_info("I get the OVS_TT_FLOW_ATTR_PERIOD: %d\n", period);
+		tt_item->period = *(u64 *)nla_data(a[OVS_TT_FLOW_ATTR_PERIOD]);
+		pr_info("I get the OVS_TT_FLOW_ATTR_PERIOD: %llu\n", tt_item->period);
 	}
     else
         goto error_kfree_item;
 
 	if (a[OVS_TT_FLOW_ATTR_BUFFER_ID]) {
-		buffer_id = *(int *)nla_data(a[OVS_TT_FLOW_ATTR_BUFFER_ID]);
-		pr_info("I get the OVS_TT_FLOW_ATTR_BUFFER_ID: %d\n", buffer_id);
+		tt_item->buffer_id = *(u32 *)nla_data(a[OVS_TT_FLOW_ATTR_BUFFER_ID]);
+		pr_info("I get the OVS_TT_FLOW_ATTR_BUFFER_ID: %d\n", tt_item->buffer_id);
 	}
     else
 		goto error_kfree_item;
 
-	if (a[OVS_TT_FLOW_ATTR_PKT_SIZE]) {
-		pkt_size = *(int *)nla_data(a[OVS_TT_FLOW_ATTR_PKT_SIZE]);
-		pr_info("I get the OVS_TT_FLOW_ATTR_PKT_SIZE: %d\n", pkt_size);
+	if (a[OVS_TT_FLOW_ATTR_PACKET_SIZE]) {
+		tt_item->packet_size = *(u32 *)nla_data(a[OVS_TT_FLOW_ATTR_PACKET_SIZE]);
+		pr_info("I get the OVS_TT_FLOW_ATTR_PACKET_SIZE: %d\n", tt_item->packet_size);
+	}
+    else
+        goto error_kfree_item;
+	
+    if (a[OVS_TT_FLOW_ATTR_EXECUTE_TIME]) {
+		execute_time = *(u64 *)nla_data(a[OVS_TT_FLOW_ATTR_EXECUTE_TIME]);
+		pr_info("I get the OVS_TT_FLOW_ATTR_EXECUTE_TIME: %llu\n", execute_time);
 	}
 	else 
 		goto error_kfree_item;
-
-
-    tt_item->flow_id = flow_id;
-    tt_item->buffer_id = buffer_id;
-    tt_item->period = period; //test
-    tt_item->time = schedule_time;
-    tt_item->len = pkt_size;
-    //pr_info("tt_item->period: %llu", tt_item->period);
 
     ovs_lock();
     dp = get_dp(net, ovs_header->dp_ifindex);
@@ -2515,18 +2444,17 @@ static int ovs_tt_cmd_add(struct sk_buff *skb, struct genl_info *info)
         cur_tt_table = rcu_dereference(vport->send_tt_table);
         rcu_assign_pointer(cur_tt_table, tt_table_item_insert(cur_tt_table, tt_item));
         rcu_assign_pointer(vport->send_tt_table, cur_tt_table);
-        // test
-        /**
-        if (flow_id == 1) {
+        // ==>>> test
+        if (tt_item->flow_id == 1) {
             if (unlikely(dispatch(vport))) { 
 				pr_info("dispatch send info fail!\n");
 			}
 			else {
+                ovs_vport_hrtimer_cancel(vport);
 				vport->send_info->advance_time = 200;
 				ovs_vport_hrtimer_init(vport);
 			}
         }
-        **/
     }
     ovs_unlock();
 

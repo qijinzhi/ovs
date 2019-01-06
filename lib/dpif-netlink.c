@@ -2355,13 +2355,14 @@ struct dpif_netlink_tt_flow {
     int dp_ifindex;
     
     /* Attributes. */
-    uint8_t port;            /* OVS_TT_FLOW_ATTR_PORT. */
-    uint8_t etype;           /* OVS_TT_FLOW_ATTR_ETYPE. */
-    uint8_t flow_id;         /* OVS_TT_FLOW_ATTR_FLOW_ID. */
-    ovs_be32 scheduled_time; /* OVS_TT_FLOW_ATTR_SCHEDULED_TIME. */
-    ovs_be32 period;         /* OVS_TT_FLOW_ATTR_PERIOD. */
+    ovs_be32 port;           /* OVS_TT_FLOW_ATTR_PORT. */
+    ovs_be32 etype;          /* OVS_TT_FLOW_ATTR_ETYPE. */
+    ovs_be32 flow_id;        /* OVS_TT_FLOW_ATTR_FLOW_ID. */
+    ovs_be64 base_offset;    /* OVS_TT_FLOW_ATTR_base_offset. */
+    ovs_be64 period;         /* OVS_TT_FLOW_ATTR_PERIOD. */
     ovs_be32 buffer_id;      /* OVS_TT_FLOW_ATTR_BUFFER_ID. */
-    ovs_be32 pkt_size;       /* OVS_TT_FLOW_ATTR_PKT_SIZE. */
+    ovs_be32 packet_size;    /* OVS_TT_FLOW_ATTR_packet_size. */
+    ovs_be64 execute_time;   /* OVS_TT_FLOW_ATTR_execute_time. */
 };
 
 /* Clears 'tt' to "empty" values. */
@@ -2385,13 +2386,14 @@ dpif_netlink_tt_flow_to_ofpbuf(const struct dpif_netlink_tt_flow *flow,
     ovs_header->dp_ifindex = flow->dp_ifindex;
     
     if (flow) {
-        nl_msg_put_u8(buf, OVS_TT_FLOW_ATTR_PORT, flow->port);
-        nl_msg_put_u8(buf, OVS_TT_FLOW_ATTR_ETYPE, flow->etype);
-        nl_msg_put_u8(buf, OVS_TT_FLOW_ATTR_FLOW_ID, flow->flow_id);
-        nl_msg_put_u32(buf, OVS_TT_FLOW_ATTR_SCHEDULED_TIME, flow->scheduled_time);
-        nl_msg_put_u32(buf, OVS_TT_FLOW_ATTR_PERIOD, flow->period);
+        nl_msg_put_u32(buf, OVS_TT_FLOW_ATTR_PORT, flow->port);
+        nl_msg_put_u32(buf, OVS_TT_FLOW_ATTR_ETYPE, flow->etype);
+        nl_msg_put_u32(buf, OVS_TT_FLOW_ATTR_FLOW_ID, flow->flow_id);
+        nl_msg_put_u64(buf, OVS_TT_FLOW_ATTR_BASE_OFFSET, flow->base_offset);
+        nl_msg_put_u64(buf, OVS_TT_FLOW_ATTR_PERIOD, flow->period);
         nl_msg_put_u32(buf, OVS_TT_FLOW_ATTR_BUFFER_ID, flow->buffer_id);
-        nl_msg_put_u32(buf, OVS_TT_FLOW_ATTR_PKT_SIZE, flow->pkt_size);
+        nl_msg_put_u32(buf, OVS_TT_FLOW_ATTR_PACKET_SIZE, flow->packet_size);
+        nl_msg_put_u64(buf, OVS_TT_FLOW_ATTR_EXECUTE_TIME, flow->execute_time);
     }
 }
 
@@ -2405,10 +2407,11 @@ dpif_netlink_init_tt_flow_put(struct dpif_netlink *dpif,
     request->port = put->port;
     request->etype = put->etype;
     request->flow_id = put->flow_id;
-    request->scheduled_time = put->scheduled_time;
+    request->base_offset = put->base_offset;
     request->period = put->period;
     request->buffer_id = put->buffer_id;
-    request->pkt_size = put->pkt_size;
+    request->packet_size = put->packet_size;
+    request->execute_time = put->execute_time;
     request->dp_ifindex = dpif->dp_ifindex;
     //dpif_netlink_flow_init_ufid(request, put->ufid, false);
 }
@@ -2470,10 +2473,11 @@ dpif_netlink_tt_operate__(struct dpif_netlink *dpif,
             VLOG_WARN("dpif_netlink_tt_flow.port = %d", flow.port);
             VLOG_WARN("dpif_netlink_tt_flow.etype = %d", flow.etype);
             VLOG_WARN("dpif_netlink_tt_flow.flow_id = %d", flow.flow_id);
-            VLOG_WARN("dpif_netlink_tt_flow.scheduled_time = %d", flow.scheduled_time);
+            VLOG_WARN("dpif_netlink_tt_flow.base_offset = %d", flow.base_offset);
             VLOG_WARN("dpif_netlink_tt_flow.period = %d", flow.period);
             VLOG_WARN("dpif_netlink_tt_flow.buffer_id = %d", flow.buffer_id);
-            VLOG_WARN("dpif_netlink_tt_flow.pkt_size = %d", flow.pkt_size);
+            VLOG_WARN("dpif_netlink_tt_flow.packet_size = %d", flow.packet_size);
+            VLOG_WARN("dpif_netlink_tt_flow.execute_time = %d", flow.execute_time);
             */
 			
             break;

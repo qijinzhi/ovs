@@ -108,6 +108,7 @@ struct vport {
     struct tt_table __rcu *send_tt_table;
     struct tt_send_info *send_info;
     struct hrtimer timer;
+    u8 hrtimer_flag; //1:hrtimer restart, 0:hrtimer norestart
 };
 
 /**
@@ -248,4 +249,5 @@ static inline struct rtable *ovs_tunnel_route_lookup(struct net *net,
 
 void ovs_vport_send(struct vport *vport, struct sk_buff *skb);
 void ovs_vport_hrtimer_init(struct vport* vport);
+void ovs_vport_hrtimer_cancel(struct vport *vport);
 #endif /* vport.h */

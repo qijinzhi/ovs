@@ -7144,9 +7144,9 @@ handle_tt_flow_ctrl(struct ofconn *ofconn, const struct ofp_header *oh)
         return error;
     }
     reply.command = tfctrl.command;
-    reply.flow_number = tfctrl.flow_number;
+    reply.flow_count = tfctrl.flow_count;
 
-    VLOG_INFO_RL(&rl, "TT control msg: flow_num %d", tfctrl.flow_number);
+    VLOG_INFO_RL(&rl, "TT control msg: flow_count %d", tfctrl.flow_count);
 
     switch (tfctrl.type) {
     case ONF_TFCT_DOWNLOAD_START_REQUEST: 
@@ -7159,9 +7159,17 @@ handle_tt_flow_ctrl(struct ofconn *ofconn, const struct ofp_header *oh)
         //              tfctrl.command, tfctrl.flow_number);
         reply.type = ONF_TFCT_DOWNLOAD_END_REPLY;
         break;
+    case ONF_TFCT_CLEAR_OLD_REQUEST:
+        reply.type = ONF_TFCT_CLEAR_OLD_REPLY;
+        break;
+    case ONF_TFCT_QUERY_TABLE_REQUEST:
+        reply.type = ONF_TFCT_QUERY_TABLE_REPLY;
+        break;
 
     case ONF_TFCT_DOWNLOAD_START_REPLY:
     case ONF_TFCT_DOWNLOAD_END_REPLY:
+    case ONF_TFCT_CLEAR_OLD_REPLY:
+    case ONF_TFCT_QUERY_TABLE_REPLY:
         // return ONFERR_ET_TFC_BAD_TYPE;
         break;
     }

@@ -282,8 +282,8 @@ struct tt_table* tt_table_item_insert(struct tt_table *cur_tt_table, const struc
 	item->flow_id = new->flow_id;
 	item->buffer_id = new->buffer_id;
 	item->period = new->period;
-	item->len = new->len;
-	item->time = new->time;
+	item->packet_size = new->packet_size;
+	item->base_offset = new->base_offset;
 	
 	//mask_array中实际长度大于最大长度，则重新分配mask_array空间（扩容）
 	if (!cur_tt_table || flow_id > cur_tt_table->max) {
@@ -313,13 +313,14 @@ static u64 gcd(u64 a, u64 b) {
 	u64 mod;
 	if(b == 0)
 		return a;
-	mod = do_div(a, b);
-	return gcd(b, mod);
+	//mod = do_div(a, b);
+	mod = a % b;
+    return gcd(b, mod);
 }
 
 static u64 lcm(u64 a, u64 b) {
 	u64 g = gcd(a, b);
-	do_div(a, g);
+    a = div64_u64(a, g);
 	return a * b;
 }
 
@@ -422,12 +423,14 @@ int dispatch(struct vport* vport) {
 			continue;
 
 		temp_period = macro_period;
-		do_div(temp_period, tt_item->period);
+		temp_period = div64_u64(temp_period, tt_item->period);
 		size += temp_period;
 	}
 
 	//宏周期上打点
-	send_times = kmalloc(size * sizeof(u64), GFP_KERNEL);
+	printk(KERN_ALERT "DEBUG: send_times macro_period = %llu ! %s %d \n", macro_period, __FUNCTION__, __LINE__);
+	printk(KERN_ALERT "DEBUG: send_times size = %llu ! %s %d \n", size, __FUNCTION__, __LINE__);
+    send_times = kmalloc(size * sizeof(u64), GFP_KERNEL);
 	if (!send_times) {
 		printk(KERN_ALERT "DEBUG: send_times alloc fail!  %s %d \n", __FUNCTION__, __LINE__);
 		return -ENOMEM;
@@ -445,7 +448,7 @@ int dispatch(struct vport* vport) {
 		if (!tt_item)
 			continue;
 		
-		offset = tt_item->time;
+		offset = tt_item->base_offset;
 		while(offset < macro_period){
 			send_times[k] = offset; 
 			flow_ids[k] = tt_item->flow_id;
@@ -458,11 +461,8 @@ int dispatch(struct vport* vport) {
 	//排序
 	sort(send_times, flow_ids, 0, size - 1);
 													
-	//检验宏周期内是否有两个流发生碰撞，或有则输出错误信息
-	for (i = 1;i < size;i++){
-		if (send_times[i] <= send_times[i - 1])
-			printk(KERN_ALERT "DEBUG: time error: %llu, flow_id1: %u, flow_id2: %u %s %d \n", \
-					send_times[i], flow_ids[i - 1], flow_ids[i], __FUNCTION__, __LINE__);
+	for (i = 0; i < size;i++){
+		printk(KERN_ALERT "DEBUG: index %d, flow_id: %d, send_time: %llu", i, flow_ids[i], send_times[i]);
 	}
 	
 	send_cache = &send_info->send_cache;
@@ -476,7 +476,8 @@ int dispatch(struct vport* vport) {
 	return 0;
 }
 
-static u16 binarySearch(struct vport *vport, u64 modTime){
+static u16 binarySearch(struct vport *vport, u64 mod_time)
+{
 	u64 *send_times;
 	u16 *flow_ids;
 	u16 left;
@@ -488,18 +489,18 @@ static u16 binarySearch(struct vport *vport, u64 modTime){
 	flow_ids = vport->send_info->send_cache.flow_ids;
 	size = vport->send_info->send_cache.size;
 	left = 0;
-	right = size - 1;
+	right = size;
 
 	while (left < right) {
 		mid = (right - left) / 2 + left;
-		if (send_times[mid] <= modTime){
+		if (send_times[mid] <= mod_time){
 			left = mid + 1;
 		}else{
 			right = mid;
 		}
 	}
 	
-	return do_div(left, size);
+	return left % size;
 }
 
 void get_next_time(struct vport *vport, u64 cur_time, u64 *wait_time, u16 *flow_id, u64 *send_time) {
@@ -511,10 +512,11 @@ void get_next_time(struct vport *vport, u64 cur_time, u64 *wait_time, u16 *flow_
 
 	send_info = vport->send_info;
 	send_cache = &send_info->send_cache;
-	mod_time = do_div(cur_time, send_info->macro_period);
-	idx = binarySearch(vport, mod_time);
+	mod_time = cur_time % send_info->macro_period;
+	
+    idx = binarySearch(vport, mod_time);
 	next_idx = idx + 1;
-	next_idx = do_div(next_idx, send_cache->size);
+	next_idx = next_idx % send_cache->size;
 
 	*flow_id = send_cache->flow_ids[idx];
 	if (next_idx == 0) {
@@ -532,4 +534,6 @@ void get_next_time(struct vport *vport, u64 cur_time, u64 *wait_time, u16 *flow_
 	}
 
 	*send_time = cur_time + *send_time;
+    pr_info("SEND_INFO: mod_time %llu, cur_idx %d, current flow id %d, current send time %llu", mod_time, idx, send_cache->flow_ids[idx], send_cache->send_times[idx]);
+    pr_info("SEND_INFO: send_time %llu, wait_time %llu", *send_time, *wait_time);
 }

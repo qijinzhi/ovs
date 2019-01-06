@@ -866,15 +866,15 @@ enum dpif_tt_op_type {
 };
 
 struct dpif_tt_flow_put {
-    /* Input. */
     /* Entry field */
-    uint8_t port; /* The entry related port. */
-    uint8_t etype; /* Send entry or receive entry. */
-    uint8_t flow_id; /* The identify of a flow. */
-    ovs_be32 scheduled_time; /* The scheduled time that the flow packet is received or sent. */
-    ovs_be32 period; /* The scheduling period. */
+    ovs_be32 port; /* The entry related port. */
+    ovs_be32 etype; /* Send entry or receive entry. */
+    ovs_be32 flow_id; /* The identify of a flow. */
+    ovs_be64 base_offset; /* The scheduled time that the flow packet is received or sent. */
+    ovs_be64 period; /* The scheduling period. */
     ovs_be32 buffer_id; /* Buffered packet to apply to. */
-    ovs_be32 pkt_size; /* The flow packet size. */
+    ovs_be32 packet_size; /* The flow packet size. */
+    ovs_be64 execute_time; /* The time this entry take effect. */
 };
 
 struct dpif_tt_op {
@@ -891,22 +891,21 @@ struct dpif_tt_op {
 };
 
 struct dpif_tt_flow {
-    /* Command type */
-    uint8_t command; /* One of OFPFC_* */
     /* Entry field */
-    uint8_t port; /* The entry related port. */
-    uint8_t etype; /* Send entry or receive entry. */
-    uint8_t flow_id; /* The identify of a flow. */
-    ovs_be32 scheduled_time; /* The scheduled time that the flow packet is received or sent. */
-    ovs_be32 period; /* The scheduling period. */
+    ovs_be32 port; /* The entry related port. */
+    ovs_be32 etype; /* Send entry or receive entry. */
+    ovs_be32 flow_id; /* The identify of a flow. */
+    ovs_be64 base_offset; /* The scheduled time that the flow packet is received or sent. */
+    ovs_be64 period; /* The scheduling period. */
     ovs_be32 buffer_id; /* Buffered packet to apply to. */
-    ovs_be32 pkt_size; /* The flow packet size. */
+    ovs_be32 packet_size; /* The flow packet size. */
+    ovs_be64 execute_time; /* The time this entry take effect. */
 };
 
 int dpif_tt_flow_put(struct dpif *dpif, 
-                     uint8_t port, uint8_t etype, uint8_t flow_id, 
-                     ovs_be32 scheduled_time, ovs_be32 period, 
-                     ovs_be32 buffer_id, ovs_be32 pkt_size);
+                     ovs_be32 port, ovs_be32 etype, ovs_be32 flow_id, 
+                     ovs_be64 base_offset, ovs_be64 period, 
+                     ovs_be32 buffer_id, ovs_be32 packet_size, ovs_be64 execute_time);
 void dpif_tt_operate(struct dpif *dpif, struct dpif_tt_op **ops, size_t n_ops);
 
 #ifdef  __cplusplus

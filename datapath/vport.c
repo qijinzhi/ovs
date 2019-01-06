@@ -236,124 +236,84 @@ static struct vport_ops *ovs_vport_lookup(const struct vport_parms *parms)
 	return NULL;
 }
 
-//test
-static void test_tt_table(struct vport *p) {
-	struct tt_table_item* item1 = tt_table_item_alloc();
-	struct tt_table_item* item2 = tt_table_item_alloc();
-	struct tt_table_item* item3 = tt_table_item_alloc();
-	struct tt_table_item* item4 = tt_table_item_alloc();
-	struct tt_table * cur = rcu_dereference(p->arrive_tt_table);
-	struct tt_table * cur2 = rcu_dereference(p->send_tt_table);
-	
-	item1->flow_id = 0;
-	item1->buffer_id = 0;
-	item1->period = 2000000000;
-	item1->len = 64;
-	item1->time = 80000000;
-
-	item2->flow_id = 1;
-	item2->buffer_id = 1;
-	item2->period = 4000000000;
-	item2->len = 64;
-	item2->time = 16000000;
-
-	item3->flow_id = 0;
-	item3->buffer_id = 0;
-	item3->period = 2000000000;
-	item3->len = 64;
-	item3->time = 0;
-	
-	item4->flow_id = 1;
-	item4->buffer_id = 1;
-	item4->period = 4000000000;
-	item4->len = 64;
-	item4->time = 3000000000;
- 
-	rcu_assign_pointer(cur, tt_table_item_insert(cur, item1));
-	rcu_assign_pointer(cur, tt_table_item_insert(cur, item2)); 
-	rcu_assign_pointer(p->arrive_tt_table, cur);
-
-	rcu_assign_pointer(cur2, tt_table_item_insert(cur2, item3));
-	rcu_assign_pointer(cur2, tt_table_item_insert(cur2, item4)); 
-	rcu_assign_pointer(p->send_tt_table, cur2);
-}
-
-// hrtimer handler
-static enum hrtimer_restart hrtimer_handler(struct hrtimer *timer) {
+/** hrtimer handler **/
+static enum hrtimer_restart hrtimer_handler(struct hrtimer *timer) 
+{
 	u64 global_register_time;
 	struct timespec current_time;
 	u64 wait_time;
 	u16 flow_id;
 	u64 send_time;
-	u16 i;
 
 	struct sk_buff *skb;
 	struct sk_buff *out_skb;
 	struct vport *vport;
 	struct tt_send_info *send_info;
 
-	vport = container_of(timer, struct vport, timer);
+    vport = container_of(timer, struct vport, timer);
 	send_info = vport->send_info;
 	
 	global_register_time = global_time_read();  //read register time
 	get_next_time(vport, global_register_time, &wait_time, &flow_id, &send_time);
 	
 	if (!(vport->dp->tt_buffer[flow_id])) {
-		printk(KERN_ALERT "DEBUG: tt buffer is empty! vport id %d wiil send flow id %u %s %d \n", vport->port_no, flow_id, __FUNCTION__, __LINE__);
+		pr_info("miss: vport id %d can't send flow id %u\n", vport->port_no, flow_id);
 	}
 
-	for (i=0; i<TT_BUFFER_SIZE; i++) {
-		if (vport->dp->tt_buffer[i]) {
-			printk(KERN_ALERT "DEBUG: tt buffer id is true! flow_id %u %s %d \n", i, __FUNCTION__, __LINE__);
-		}
-	}
-	
 	hrtimer_forward_now(timer, ns_to_ktime(wait_time));
 	 
 	skb = vport->dp->tt_buffer[flow_id];
 	//vport->dp->tt_buffer[flow_id] = NULL;
 	
-	printk(KERN_ALERT "DEBUG: hrtimer timer is running, dp user_fature %d vport id %d wiil send flow id %u %s %d \n",
-			vport->dp->user_features, vport->port_no,  flow_id, __FUNCTION__, __LINE__);
 	if (likely(skb != NULL)) {
-		printk(KERN_ALERT "DEBUG: before hrtimer timer is running, send flow id %u, vport id %d. %s %d \n", flow_id, vport->port_no, __FUNCTION__, __LINE__);
-		do {   
-			getnstimeofday(&current_time);
-		} while (send_time - TIMESPEC_TO_NSEC(current_time) < send_info->advance_time);
-		
-		printk(KERN_ALERT "DEBUG: hrtimer timer is running, send flow id %u, vport id %d. %s %d \n", flow_id, vport->port_no, __FUNCTION__, __LINE__);
-		
+	    do {   
+		    getnstimeofday(&current_time);
+	    } while (send_time - TIMESPEC_TO_NSEC(current_time) < send_info->advance_time);
+		pr_info("Finish: vport id %d send flow id %d \n", vport->port_no, flow_id);
 		out_skb = skb_clone(skb, GFP_ATOMIC);
 		ovs_vport_send(vport, out_skb);
 	}
 
-	return HRTIMER_RESTART;
+    if (vport->hrtimer_flag)
+	    return HRTIMER_RESTART;
+    else
+        return HRTIMER_NORESTART;
 }
 
-// hrtimer init
-void ovs_vport_hrtimer_init(struct vport* vport) { 
+/** hrtimer init **/
+void ovs_vport_hrtimer_init(struct vport* vport) 
+{ 
 	u64 global_register_time;
 	u64 offset_time;
 	struct timespec current_time;
 	struct tt_send_info *send_info;
 
-	pr_info("hrtimer timer is running vport id %d.", vport->port_no);
 	send_info = vport->send_info;
 	hrtimer_init(&vport->timer, CLOCK_REALTIME, HRTIMER_MODE_ABS);
 	vport->timer.function = hrtimer_handler;
+    vport->hrtimer_flag = 1;
 
 	global_register_time = global_time_read();  //read register time
 	getnstimeofday(&current_time);
 													 
-	offset_time = do_div(global_register_time, send_info->macro_period);
-	offset_time = send_info->macro_period - offset_time;  //实际偏移
-	hrtimer_start(&vport->timer, ns_to_ktime(TIMESPEC_TO_NSEC(current_time) + offset_time - send_info->advance_time), HRTIMER_MODE_ABS); 
+	offset_time = global_register_time % send_info->macro_period;
+	offset_time = send_info->macro_period - offset_time;
+	pr_info("vport_no: %d, after %llu ns, hrtimer will start!", vport->port_no, offset_time);
+    hrtimer_start(&vport->timer, ns_to_ktime(TIMESPEC_TO_NSEC(current_time) + offset_time - send_info->advance_time), HRTIMER_MODE_ABS); 
 }
 
-// hrtimer cancel
-static void ovs_vport_hrtimer_cancel(struct vport *vport) {
-	//if (vport->timer)
-    //hrtimer_cancel(&vport->timer);
+/** hrtimer cancel **/
+void ovs_vport_hrtimer_cancel(struct vport *vport) 
+{
+    int cancelled = 1;
+	if (1 == vport->hrtimer_flag) {
+        vport->hrtimer_flag = 0;
+        while (cancelled) {
+            cancelled = hrtimer_cancel(&vport->timer);
+            pr_info("hrtimer: hrtimer is running.");
+        }
+        pr_info("hrtimer: hrtimer cancelled.");
+    }
 }
 
 /**
@@ -385,20 +345,6 @@ struct vport *ovs_vport_add(const struct vport_parms *parms)
 		bucket = hash_bucket(ovs_dp_get_net(vport->dp),
 					 ovs_vport_name(vport));
 		hlist_add_head_rcu(&vport->hash_node, bucket);
-
-        /**
-		//修改此处，用于测试
-		test_tt_table(vport);
-		if (rcu_dereference_raw(vport->send_tt_table)) { 
-			if (unlikely(dispatch(vport))) { //计算发送信息
-				printk(KERN_ALERT "DEBUG: dispatch send info fail!  %s %d \n", __FUNCTION__, __LINE__);
-			}
-			else {
-				vport->send_info->advance_time = 200; //这里先默认为200？？？？？？？？？？？？？？？？？？？？？？？
-				ovs_vport_hrtimer_init(vport);
-			}
-		}
-        **/
 
 		return vport;
 	}
@@ -448,7 +394,7 @@ void ovs_vport_del(struct vport *vport)
 	//	kfree(rcu_dereference_raw(vport->arrive_tt_table));
 	//if (rcu_dereference_raw(vport->send_tt_table))
 	//	kfree(rcu_dereference_raw(vport->send_tt_table));
-	ovs_vport_hrtimer_cancel(vport); //取消定时器
+	ovs_vport_hrtimer_cancel(vport);
 
 	hlist_del_rcu(&vport->hash_node);
 	module_put(vport->ops->owner);
