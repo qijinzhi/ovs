@@ -33,7 +33,7 @@
 #include "flow_table.h"
 #include "vlan.h"
 
-#define DP_MAX_PORTS           USHRT_MAX
+#define DP_MAX_PORTS		   USHRT_MAX
 #define DP_VPORT_HASH_BUCKETS  1024
 
 #define SAMPLE_ACTION_DEPTH 3
@@ -70,6 +70,7 @@ struct dp_stats_percpu {
  * ovs_mutex and RCU.
  * @stats_percpu: Per-CPU datapath statistics.
  * @net: Reference to net namespace.
+ * @tt_buffer: store tt flow
  *
  * Context: See the comment on locking at the top of datapath.c for additional
  * locking information.
@@ -91,7 +92,7 @@ struct datapath {
 	possible_net_t net;
 
 	u32 user_features;
-    struct sk_buff** tt_buffer; //[TT_BUFFER_SIZE];
+	struct sk_buff** tt_buffer; //===> maybe should add rcu ???
 };
 
 /**

@@ -209,11 +209,17 @@ static int get_dpifindex(const struct datapath *dp)
 
 static void destroy_dp_rcu(struct rcu_head *rcu)
 {
+	int i;
 	struct datapath *dp = container_of(rcu, struct datapath, rcu);
 
 	ovs_flow_tbl_destroy(&dp->table);
 	free_percpu(dp->stats_percpu);
 	kfree(dp->ports);
+	for (i=0; i<TT_BUFFER_SIZE; i++) {
+		if (dp->tt_buffer[i]) 
+			kfree(dp->tt_buffer[i]);
+	}
+	kfree(dp->tt_buffer);
 	kfree(dp);
 }
 
@@ -278,13 +284,8 @@ static void ovs_dp_process_tt_packet(struct sk_buff *skb)
 	u64 offset_time;
 	u16 flow_id;
 
-	if (!(skb)->tstamp.tv64)
-		pr_info("ERROR: get tstamp error.\n");
-
 	/* extract skb timestamp and flow id */
 	skb_get_timestampns(skb, &arrive_stamp);
-	printk(KERN_ALERT "DEBUG: dp features %u arrive_stamp=>%ld: %ld %s %d \n", 
-			dp->user_features, arrive_stamp.tv_sec, arrive_stamp.tv_nsec, __FUNCTION__, __LINE__);
 	
 	tthdr = (struct tt_header*)skb_tt_header(skb);
 	if (!tthdr) {
@@ -292,58 +293,47 @@ static void ovs_dp_process_tt_packet(struct sk_buff *skb)
 		return;
 	}
 	flow_id = tthdr->flow_id;
-	printk(KERN_ALERT "DEBUG: vport=> %d arrive flow id => %d %s %d \n", p->port_no, flow_id, __FUNCTION__, __LINE__);
+	pr_info("PROCESS: vport_no %d arrive flow id %d.\n", p->port_no, flow_id);
 	
-	//2. 查对应vport的tt到达表，取出对应的表项
+	/* loop up tt arrive table. */
 	arrive_tt_table = ovsl_dereference(p->arrive_tt_table);
 	if (!arrive_tt_table) {
-		printk(KERN_ALERT "DEBUG: arrive_tt_table is empty %s %d \n", __FUNCTION__, __LINE__);
 		return;
 	}
 	tt_item = tt_table_lookup(arrive_tt_table, flow_id);
-	if (tt_item)
-		printk(KERN_ALERT "arrive_table: flow_id=>%d, buffer_id=>%d, length=>%d, %s %d \n", 
-			tt_item->flow_id, tt_item->buffer_id, tt_item->packet_size,__FUNCTION__, __LINE__);
-	
+	if (!tt_item) {
+		return;
+	}
+
 	/* compare arrive timestamp
-     * skb arrive timestamp should less or equal teh timestap in arrivte_tt_table 
-     */
-	/**
+	 * skb arrive timestamp should less or equal to the timestap in arrivte_tt_table 
+	 */
 	getnstimeofday(&current_time);
 	global_time = global_time_read();
-	arrive_global_time = global_time - (TIMESPEC_TO_NSEC(current_time) - TIMESPEC_TO_NSEC(arrive_stamp));
-	//offset_time =  do_div(arrive_global_time, tt_item->period);
+	
+	arrive_global_time = global_time - (TIMESPEC_TO_NSEC(current_time) \
+			- TIMESPEC_TO_NSEC(arrive_stamp));
+	
 	offset_time =  arrive_global_time % tt_item->period;
-	if (offset_time > tt_item->time + MAX_JITTER || offset_time < tt_item->time - MAX_JITTER) {
-		printk(KERN_ALERT "the flow arrive out of range: flow_id=>%d, %s %d \n", flow_id,__FUNCTION__, __LINE__);
+	if (offset_time > tt_item->base_offset + MAX_JITTER) {
+		pr_info("WILL MISS: flow_id %u arrive late on vport %d!, throw it!", flow_id, p->port_no);
 		kfree_skb(skb);
 		return;
-	}**/
+	}
 
-	// 加入到tt_buffer
+	/* add to tt buffer. */
 	if (unlikely(flow_id >= TT_BUFFER_SIZE)) {
-		printk(KERN_ALERT "flow_id out of range! %s %d \n", __FUNCTION__, __LINE__);
 		kfree_skb(skb);
 		return;
 	}
 
-	// 这里应该还有一步，判断当前vport是否是最后一跳，是否需要转化为标准的upd报文
-	err = tt_to_trdp(skb); //转化为trdp数据报文
+	/* ===>> convert to trdp packet, just for test. */
+	err = tt_to_trdp(skb);
 	if (err) {
-		printk(KERN_ALERT "DEBUG: tt to trdp failed! %s %d \n", __FUNCTION__, __LINE__);
 		return;
 	}
 	
-	
-	dp->tt_buffer[flow_id] = skb;
-	if (!dp->tt_buffer[flow_id]) {
-		printk(KERN_ALERT "DEBUG: can't insert into tt_bufer, dp feautres %d vport_id %u flow_id %u %s %d \n", 
-				dp->user_features, p->port_no, flow_id, __FUNCTION__, __LINE__);
-	}
-	else {
-		printk(KERN_ALERT "DEBUG: insert into tt_bufer, dp feautres %d vport_id %u flow id %u %s %d \n", 
-				dp->user_features, p->port_no, flow_id, __FUNCTION__, __LINE__);
-	}
+	dp->tt_buffer[flow_id] = skb; /* ===>>> should be called with ruc?? */
 }
 
 /* Must be called with rcu_read_lock. */
@@ -358,19 +348,17 @@ void ovs_dp_process_packet(struct sk_buff *skb, struct sw_flow_key *key)
 	u32 n_mask_hit;
 	int error;
 
-	// TRDP报文，先将其转化为TT报文，并走TT报文处理流程
+	/* TRDP packet process. */
 	if (is_trdp_packet(skb)) {
 		error = trdp_to_tt(skb);
 		if (unlikely(error)) {
 			kfree_skb(skb);
-			printk(KERN_ALERT "DEBUG: can't translate trdp packet into tt packet %s %d \n", __FUNCTION__, __LINE__);
 			return;
 		}
 		ovs_dp_process_tt_packet(skb);
 		return;
 	}
 
-	//TT报文，直接走TT报文处理流程
 	if (is_tt_packet(skb)) {
 		ovs_dp_process_tt_packet(skb);
 		return;
@@ -1698,7 +1686,7 @@ static int ovs_dp_cmd_new(struct sk_buff *skb, struct genl_info *info)
 	for (i = 0; i < DP_VPORT_HASH_BUCKETS; i++)
 		INIT_HLIST_HEAD(&dp->ports[i]);
 	
-	// tt_buffer initialize
+	/* tt_buffer initialize. */
 	dp->tt_buffer = kzalloc(TT_BUFFER_SIZE * sizeof(struct sk_buff*), GFP_KERNEL);
 
 	/* Set up our datapath device. */
@@ -2344,127 +2332,139 @@ static int ovs_tt_cmd_add(struct sk_buff *skb, struct genl_info *info)
 	u64 execute_time;
 
 	struct nlattr **a = info->attrs;
-    struct vport *vport;
-    struct datapath *dp;
-    struct ovs_header *ovs_header = info->userhdr;
-    struct net *net = sock_net(skb->sk);
-    struct tt_table_item *tt_item;
-    struct tt_table *cur_tt_table;
-    int error = -EINVAL;
+	struct vport *vport;
+	struct datapath *dp;
+	struct ovs_header *ovs_header = info->userhdr;
+	struct net *net = sock_net(skb->sk);
+	struct tt_table_item *tt_item;
+	struct tt_table *cur_tt_table;
+	struct tt_table *tmp_tt_table;
+	int error = -EINVAL;
 
-    if (unlikely(!ovs_header)) {
-        pr_info("get ovs_header fail!\n");
-        goto error;
-    }
-    else {
-        pr_info("get dp_ifindex: %d", ovs_header->dp_ifindex);
-    }
+	if (unlikely(!ovs_header)) {
+		pr_info("get ovs_header fail!\n");
+		goto error;
+	}
+	else {
+		pr_info("get dp_ifindex: %d", ovs_header->dp_ifindex);
+	}
 
-    tt_item = tt_table_item_alloc();
-    if (unlikely(!tt_item)) {
-        pr_info("alloc tt_item fail!\n");
-        goto error;
-    }
+	tt_item = tt_table_item_alloc();
+	if (unlikely(!tt_item)) {
+		pr_info("alloc tt_item fail!\n");
+		goto error;
+	}
 
 	if (a[OVS_TT_FLOW_ATTR_PORT]) {
 		port = *(u32 *)nla_data(a[OVS_TT_FLOW_ATTR_PORT]);
 		pr_info("I get the OVS_TT_FLOW_ATTR_PORT: %d\n", port);
 	}
-    else
+	else
 		goto error_kfree_item;
 
 	if (a[OVS_TT_FLOW_ATTR_ETYPE]) {
 		etype = *(u32 *)nla_data(a[OVS_TT_FLOW_ATTR_ETYPE]);
 		pr_info("I get the OVS_TT_FLOW_ATTR_ETYPE: %d\n", etype);
 	}
-    else
+	else
 		goto error_kfree_item;
 
 	if (a[OVS_TT_FLOW_ATTR_FLOW_ID]) {
 		tt_item->flow_id = *(u32 *)nla_data(a[OVS_TT_FLOW_ATTR_FLOW_ID]);
 		pr_info("I get the OVS_TT_FLOW_ATTR_FLOW_ID: %d\n", tt_item->flow_id);
 	}
-    else
+	else
 		goto error_kfree_item;
 
 	if (a[OVS_TT_FLOW_ATTR_BASE_OFFSET]) {
 		tt_item->base_offset = *(u64 *)nla_data(a[OVS_TT_FLOW_ATTR_BASE_OFFSET]);
 		pr_info("I get the OVS_TT_FLOW_ATTR_BASE_OFFSET: %llu\n", tt_item->base_offset);
 	}
-    else
+	else
 		goto error_kfree_item;
 
 	if (a[OVS_TT_FLOW_ATTR_PERIOD]) {
 		tt_item->period = *(u64 *)nla_data(a[OVS_TT_FLOW_ATTR_PERIOD]);
 		pr_info("I get the OVS_TT_FLOW_ATTR_PERIOD: %llu\n", tt_item->period);
 	}
-    else
-        goto error_kfree_item;
+	else
+		goto error_kfree_item;
 
 	if (a[OVS_TT_FLOW_ATTR_BUFFER_ID]) {
 		tt_item->buffer_id = *(u32 *)nla_data(a[OVS_TT_FLOW_ATTR_BUFFER_ID]);
 		pr_info("I get the OVS_TT_FLOW_ATTR_BUFFER_ID: %d\n", tt_item->buffer_id);
 	}
-    else
+	else
 		goto error_kfree_item;
 
 	if (a[OVS_TT_FLOW_ATTR_PACKET_SIZE]) {
 		tt_item->packet_size = *(u32 *)nla_data(a[OVS_TT_FLOW_ATTR_PACKET_SIZE]);
 		pr_info("I get the OVS_TT_FLOW_ATTR_PACKET_SIZE: %d\n", tt_item->packet_size);
 	}
-    else
-        goto error_kfree_item;
+	else
+		goto error_kfree_item;
 	
-    if (a[OVS_TT_FLOW_ATTR_EXECUTE_TIME]) {
+	if (a[OVS_TT_FLOW_ATTR_EXECUTE_TIME]) {
 		execute_time = *(u64 *)nla_data(a[OVS_TT_FLOW_ATTR_EXECUTE_TIME]);
 		pr_info("I get the OVS_TT_FLOW_ATTR_EXECUTE_TIME: %llu\n", execute_time);
 	}
 	else 
 		goto error_kfree_item;
 
-    ovs_lock();
-    dp = get_dp(net, ovs_header->dp_ifindex);
-    if (unlikely(!dp)) {
-        pr_info("get dp fail!\n");
-        goto  error_kfree_item;
-    }
+	ovs_lock();
+	dp = get_dp(net, ovs_header->dp_ifindex);
+	if (unlikely(!dp)) {
+		pr_info("get dp fail!\n");
+		goto  error_kfree_item;
+	}
 
-    vport = ovs_lookup_vport(dp, port);
-    if (unlikely(!vport)) {
-        pr_info("get vport %d fail!\n", port);
-        goto error_kfree_item;
-    }
+	vport = ovs_lookup_vport(dp, port);
+	if (unlikely(!vport)) {
+		pr_info("get vport %d fail!\n", port);
+		goto error_kfree_item;
+	}
 
-    if (etype == 1) {
-        cur_tt_table = rcu_dereference(vport->arrive_tt_table);
-        rcu_assign_pointer(cur_tt_table, tt_table_item_insert(cur_tt_table, tt_item));
-        rcu_assign_pointer(vport->arrive_tt_table, cur_tt_table);
-    }
-    else {
-        cur_tt_table = rcu_dereference(vport->send_tt_table);
-        rcu_assign_pointer(cur_tt_table, tt_table_item_insert(cur_tt_table, tt_item));
-        rcu_assign_pointer(vport->send_tt_table, cur_tt_table);
-        // ==>>> test
-        if (tt_item->flow_id == 1) {
-            if (unlikely(dispatch(vport))) { 
-				pr_info("dispatch send info fail!\n");
+	if (etype == 1) {
+		cur_tt_table = rcu_dereference(vport->arrive_tt_table);
+		tmp_tt_table = tt_table_item_insert(cur_tt_table, tt_item);
+		if (tmp_tt_table) {
+			rcu_assign_pointer(vport->arrive_tt_table, tmp_tt_table);
+		}
+		else {
+			pr_info("ERROR: insert tt table faild!\n");
+		}
+	}
+	else {
+		cur_tt_table = rcu_dereference(vport->send_tt_table);
+		tmp_tt_table = tt_table_item_insert(cur_tt_table, tt_item);
+		if (tmp_tt_table) {
+			rcu_assign_pointer(vport->send_tt_table, tmp_tt_table);
+
+			// ==>>> just for test
+			if (tt_item->flow_id == 5) {
+				if (unlikely(dispatch(vport))) { 
+					pr_info("ERROR: dispatch send info fail!\n");
+				}
+				else {
+					ovs_vport_hrtimer_cancel(vport);
+					vport->send_info->advance_time = 2000;
+					ovs_vport_hrtimer_init(vport);
+				}
 			}
-			else {
-                ovs_vport_hrtimer_cancel(vport);
-				vport->send_info->advance_time = 200;
-				ovs_vport_hrtimer_init(vport);
-			}
-        }
-    }
-    ovs_unlock();
+		}
+		else {
+			pr_info("ERROR: insert tt table faild!\n");
+		}
+	}
+	ovs_unlock();
 
 	return 0;
 error_kfree_item:
-    kfree(tt_item);
-    ovs_unlock();
-    return error;
+	kfree(tt_item);
+	ovs_unlock();
+	return error;
 error:
-    return error;
+	return error;
 }
 
 static struct genl_ops dp_tt_genl_ops[] = {

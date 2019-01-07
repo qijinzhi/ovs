@@ -24,33 +24,37 @@
 #include "tt.h"
 #include "vport.h"
 
-bool udp_port_is_tt(__be16 port) {
+bool udp_port_is_tt(__be16 port) 
+{
 	return port == htons(TT_PORT);
 }
 
 /* if the ether type is TT_ETH_ETYPE, it is tt packet*/
-bool eth_p_tt(__be16 eth_type) {
+bool eth_p_tt(__be16 eth_type) 
+{
 	return eth_type == htons(ETH_P_TT);
 }
 
-unsigned char *skb_tt_header(struct sk_buff *skb) {
+unsigned char *skb_tt_header(struct sk_buff *skb) 
+{
 	return skb_mac_header(skb) + skb->mac_len;
 }
 
 /**
 * is_trdp_packet -- whether it is a TRDP packet
-* @skb: skb that was receive
+* @skb: skb that was received
 * In the skb struct，skb->h、skb->nh and skb->mac should be pointed to the correct place.
-* Must be called with extrace_key.
+* Must be called after extrace_key function.
 */
-bool is_trdp_packet(struct sk_buff *skb) {
+bool is_trdp_packet(struct sk_buff *skb) 
+{
 	struct ethhdr *eth;
 	struct iphdr *nh;
 	struct udphdr *udp;
 
 	/* check if the packet is TRDP packet
 	   features: transport layer is UDP, network layer is ipv4, 
-	   UDP destination port is TT_PORT*/
+	   UDP destination port is TT_PORT */
 	eth = eth_hdr(skb);
 	if (eth->h_proto != htons(ETH_P_IP))
 		return 0;
@@ -68,51 +72,52 @@ bool is_trdp_packet(struct sk_buff *skb) {
 
 /**
 * is_tt_packet -- whether it is a TT packet
-* @skb: skb that was receive
+* @skb: skb that was received
 * In the skb struct，skb->h、skb->nh and skb->mac should be pointed to the correct place.
-* Must be called with extrace_key.
+* Must be called after extrace_key function.
 */
-bool is_tt_packet(struct sk_buff *skb) {
+bool is_tt_packet(struct sk_buff *skb) 
+{
 	struct ethhdr *eth;
 	eth = eth_hdr(skb);
 
 	return eth_p_tt(eth->h_proto);
 }
 
-/* add TT header*/
-static int push_tt(struct sk_buff *skb, const __be16* flow_id) {
+/* push TT header */
+static int push_tt(struct sk_buff *skb, const __be16* flow_id) 
+{
 	struct tt_header *tt_hdr;
 	struct ethhdr *eth;
 
 	/*use skb_cow_head fuction to check whether has enough space 
-	  to add tt header in skb, if not, realloc the skb*/
+	  to add tt header in skb, if not, realloc the skb. */
 	if (skb_cow_head(skb, TT_HLEN) < 0) {
-		printk(KERN_ALERT "DEBUG: push tt fail!  %s %d \n", __FUNCTION__, __LINE__);
 		return -ENOMEM;
 	}
 
-	// 添加tt头的空间，然后将链路层协议头整体往前移动TT_HLEN个字节
+	/* add tt header space and move the 
+	   linker layer header forward TT_HLEN bytes. */
 	skb_push(skb, TT_HLEN);
 	memmove(skb_mac_header(skb) - TT_HLEN, skb_mac_header(skb), skb->mac_len);
 	skb_reset_mac_header(skb);
 
-	//修改以太网报文类型
 	eth = eth_hdr(skb);
 	eth->h_proto = htons(ETH_P_TT);
 
-	//填充tt报文头内容
+	/* push tt message header */
 	tt_hdr = (struct tt_header*)skb_tt_header(skb);
 	tt_hdr->flow_id = *flow_id;
-	tt_hdr->len = skb->len - 4; //？？？？这里可能存在的问题，tt中的len指的是报文的整体长度，但是不包括CRC，skb->data中是否有CRC待考究，除此之外还有一些padding的部分也待考究
+	tt_hdr->len = skb->len - 4; //===>>> uncertain??
 	return 0;
 }
 
-// 删除tt头
-static int pop_tt(struct sk_buff *skb) {
+/* pop TT header */
+static int pop_tt(struct sk_buff *skb) 
+{
 	struct ethhdr *hdr;
 	int err;
 
-	// 判断当前skb是否能写
 	err = skb_ensure_writable(skb, skb->mac_len + TT_HLEN);
 	if (unlikely(err))
 		return err;
@@ -128,63 +133,61 @@ static int pop_tt(struct sk_buff *skb) {
 	return 0;
 }
 
-// 将TRDP报文转化为TT报文
-// note：已经调用过is_trdp_packet函数，并确定通过了is_trdp_packet函数
-int trdp_to_tt(struct sk_buff *skb) {
-	//if (!is_trdp_packet(skb))
-	//  return -EINVAL;
-
-	// udp数据域的前四个字节为flow_id
+/**
+* trdp_to_tt -- convert a TRDP packet to TT packet
+* @skb: skb that was received
+* Must be called after is_trdp_packet and make sure is_trdp_packet return ture.
+*/
+int trdp_to_tt(struct sk_buff *skb) 
+{
+	/* in trdp packet, the first two bytes of the udp data field are flow_id */
 	void* udp_data = skb_transport_header(skb) + sizeof(struct udphdr);
 	__be16* flow_id = (__be16*)udp_data;
-	printk(KERN_ALERT "DEBUG: cur tt flow_id is: %d %s %d \n", *flow_id, __FUNCTION__, __LINE__);
 
 	return push_tt(skb, flow_id);
 }
 
-// 将TT报文转化为TRDP报文
-// note：已经调用过is_tt_packet函数，并确定通过了is_tt_packet函数
-int tt_to_trdp(struct sk_buff *skb) {
-	//if (!is_tt_packet(skb))
-	//  return -EINVAL;
-
+/**
+* tt_to_trdp -- convert a TT packet to TRDP packet
+* @skb: skb that was received
+* Must be called after is_tt_packet and make sure is_tt_packet return ture.
+*/
+int tt_to_trdp(struct sk_buff *skb) 
+{
 	return pop_tt(skb);
 }
 
-//分配一个新的tt_table_item
-struct tt_table_item *tt_table_item_alloc(void) {
+struct tt_table_item *tt_table_item_alloc(void) 
+{
 	struct tt_table_item *item;
 
 	item = kmalloc(sizeof(*item), GFP_KERNEL);
 	if (!item) {
-		printk(KERN_ALERT "DEBUG: tt_table_item alloc fail!  %s %d \n", __FUNCTION__, __LINE__);
 		return NULL;
 	}
 	return item;
 }
 
-void rcu_free_tt_table_item(struct rcu_head *rcu) {
+void rcu_free_tt_table_item(struct rcu_head *rcu) 
+{
 	struct tt_table_item* item = container_of(rcu, struct tt_table_item, rcu);
-	
 	kfree(item);
 }
 
-//释放内存rcu_head* rcu所在的结构体
-void rcu_free_tt_table(struct rcu_head *rcu) {
-	struct tt_table *tt = container_of(rcu, struct tt_table, rcu);  //container_of：通过结构体变量中某个成员的首地址进而获得整个结构体变量的首地址
-
+void rcu_free_tt_table(struct rcu_head *rcu) 
+{
+	struct tt_table *tt = container_of(rcu, struct tt_table, rcu);
 	kfree(tt);
 }
 
-// 分配tt_table空间
-struct tt_table *tt_table_alloc(int size) {
+struct tt_table *tt_table_alloc(int size) 
+{
 	struct tt_table *new;
 
-	size = max(TT_TABLE_SIZE_MIN, size); //从0开始
+	size = max(TT_TABLE_SIZE_MIN, size);
 	new = kzalloc(sizeof(struct tt_table) +
 		sizeof(struct tt_table_item *) * size, GFP_KERNEL);
 	if (!new) {
-		printk(KERN_ALERT "DEBUG: tt_table_alloc fail!  %s %d \n", __FUNCTION__, __LINE__);
 		return NULL;
 	}
 
@@ -194,13 +197,12 @@ struct tt_table *tt_table_alloc(int size) {
 	return new;
 }
 
-// tt_table重新分配空间
-static struct tt_table* tt_table_realloc(struct tt_table *old, int size) {
+static struct tt_table* tt_table_realloc(struct tt_table *old, int size) 
+{
 	struct tt_table *new;
 
 	new = tt_table_alloc(size);
 	if (!new) {
-		printk(KERN_ALERT "DEBUG: tt_table realloc fail!  %s %d \n", __FUNCTION__, __LINE__);
 		return NULL;
 	}
 
@@ -221,26 +223,25 @@ static struct tt_table* tt_table_realloc(struct tt_table *old, int size) {
 	return new;
 }
 
-// 根据flow_id查找tt_table
-struct tt_table_item* tt_table_lookup(const struct tt_table* cur_tt_table, const __be16 flow_id) {
+struct tt_table_item* tt_table_lookup(const struct tt_table* cur_tt_table, const u32 flow_id) 
+{
 	struct tt_table_item* tt_item;
-	if (!cur_tt_table || flow_id >= cur_tt_table->max) return NULL;
+	if (!cur_tt_table || flow_id >= cur_tt_table->max) 
+		return NULL;
 
 	tt_item = ovsl_dereference(cur_tt_table->tt_items[flow_id]);
 	return tt_item;
 }
 
-// 获得当前tt表中的表项个数
-int tt_table_num_items(const struct tt_table* cur_tt_table) {
+int tt_table_num_items(const struct tt_table* cur_tt_table) 
+{
 	return cur_tt_table->count;
 }
 
-// 删除指定flow_id的表项
-// 错误返回NULL
-struct tt_table* tt_table_delete_item(struct tt_table* cur_tt_table, __be16 flow_id) {
+struct tt_table* tt_table_delete_item(struct tt_table* cur_tt_table, u32 flow_id) 
+{
 	struct tt_table_item* tt_item;
 	if (!cur_tt_table || flow_id >= cur_tt_table->max) {
-		printk(KERN_ALERT "DEBUG: flow_id to big! tt_table_item delete fail!  %s %d \n", __FUNCTION__, __LINE__);
 		return NULL;
 	}
 
@@ -251,13 +252,11 @@ struct tt_table* tt_table_delete_item(struct tt_table* cur_tt_table, __be16 flow
 		call_rcu(&tt_item->rcu, rcu_free_tt_table_item);
 	}
 
-	//必要时缩小flow_id
 	if (cur_tt_table->max >= (TT_TABLE_SIZE_MIN * 2) &&
 		cur_tt_table->count <= (cur_tt_table->max / 3)) {
 		struct tt_table* res_tt_table;
 		res_tt_table = tt_table_realloc(cur_tt_table, cur_tt_table->max / 2);
 		if (!res_tt_table) {
-			printk(KERN_ALERT "DEBUG: tt_table_item delete fail!  %s %d \n", __FUNCTION__, __LINE__);
 			return cur_tt_table;
 		}
 		
@@ -266,16 +265,13 @@ struct tt_table* tt_table_delete_item(struct tt_table* cur_tt_table, __be16 flow
 	return cur_tt_table;
 }
 
-//插入tt_table_item
-//错误返回NULL
-struct tt_table* tt_table_item_insert(struct tt_table *cur_tt_table, const struct tt_table_item *new) {
-
-	__be16 flow_id = new->flow_id;
+struct tt_table* tt_table_item_insert(struct tt_table *cur_tt_table, const struct tt_table_item *new) 
+{
+	u32 flow_id = new->flow_id;
 	struct tt_table_item *item;
 
-	item = tt_table_item_alloc(); //申请一个新的tt表项
+	item = tt_table_item_alloc();
 	if (!item) {
-		printk(KERN_ALERT "DEBUG: tt_table_item insert fail!  %s %d \n", __FUNCTION__, __LINE__);
 		return NULL;
 	}
 
@@ -285,16 +281,14 @@ struct tt_table* tt_table_item_insert(struct tt_table *cur_tt_table, const struc
 	item->packet_size = new->packet_size;
 	item->base_offset = new->base_offset;
 	
-	//mask_array中实际长度大于最大长度，则重新分配mask_array空间（扩容）
-	if (!cur_tt_table || flow_id > cur_tt_table->max) {
+	if (!cur_tt_table || flow_id >= cur_tt_table->max) {
+		//pr_info("INSERT: flow_id %lu beyond the range %lu", flow_id, cur_tt_table->max);
 		struct tt_table* res_tt_table;
-		res_tt_table = tt_table_realloc(cur_tt_table, flow_id + TT_TABLE_SIZE_MIN); // 给tbl->mask_array重新分配
+		res_tt_table = tt_table_realloc(cur_tt_table, flow_id + TT_TABLE_SIZE_MIN);
 		if (!res_tt_table) {
-			printk(KERN_ALERT "DEBUG: tt_table_item insert fail!  %s %d \n", __FUNCTION__, __LINE__);
 			kfree(item);
 			return NULL;
 		}
-
 		rcu_assign_pointer(cur_tt_table, res_tt_table);
 	}
 	
@@ -302,108 +296,132 @@ struct tt_table* tt_table_item_insert(struct tt_table *cur_tt_table, const struc
 	return cur_tt_table;
 }
 
-u64 global_time_read(void) {
+u64 global_time_read(void) 
+{
 	struct timespec current_time;
 	getnstimeofday(&current_time);
 	return TIMESPEC_TO_NSEC(current_time);
-	//return acpi_pm_read_verified();
 }
 
-static u64 gcd(u64 a, u64 b) {
+static u64 gcd(u64 a, u64 b) 
+{
 	u64 mod;
 	if(b == 0)
 		return a;
-	//mod = do_div(a, b);
 	mod = a % b;
-    return gcd(b, mod);
+	return gcd(b, mod);
 }
 
-static u64 lcm(u64 a, u64 b) {
+static u64 lcm(u64 a, u64 b) 
+{
 	u64 g = gcd(a, b);
-    a = div64_u64(a, g);
+	a = div64_u64(a, g);
 	return a * b;
 }
 
-static void sort(u64* send_times, u16* flow_ids, u16 left, u16 right) {
-	u16 r;
-	u16 l;
-	u16 mid;
+static void swap_u32(u32 *x, u32 *y) 
+{
+	u32 t = *x;
+	*x = *y;
+	*y = t;
+}
+
+static void swap_u64(u64 *x, u64 *y)
+{
+	u64 t = *x;
+	*x = *y;
+	*y = t;
+}
+
+static void sort(u64* send_times, u32* flow_ids, u32 left, u32 right) 
+{
+	u32 r;
+	u32 l;
+	u32 mid;
+	u64 pivot_send_time;
+	u32 pivot_flow_id;
 
 	if (left >= right) 
 		return;
-	
+		
 	mid = left + (right - left)/2;
-	r = right;
 	l = left;
+	r = right;
 	if (send_times[r] < send_times[l]) {
 		r = left;
 		l = right;
 	}
 	
 	if (send_times[mid] < send_times[l]) {
-		SWAP(send_times[l], send_times[right]);
-		SWAP(flow_ids[l], flow_ids[right]);
+		swap_u64(&send_times[l], &send_times[right]);
+		swap_u32(&flow_ids[l], &flow_ids[right]);
 	}
 	else if (send_times[mid] > send_times[r]) {
-		SWAP(send_times[r], send_times[right]);
-		SWAP(flow_ids[r], flow_ids[right]);
+		swap_u64(&send_times[r], &send_times[right]);
+		swap_u32(&flow_ids[r], &flow_ids[right]);
 	}
 	else {
-		SWAP(send_times[mid], send_times[right]);
-		SWAP(flow_ids[mid], flow_ids[right]);
+		swap_u64(&send_times[mid], &send_times[right]);
+		swap_u32(&flow_ids[mid], &flow_ids[right]);
 	}
 	
 	l = left;
-	r = right - 1;
+	r = right;
+	pivot_send_time = send_times[r];
+	pivot_flow_id = flow_ids[r];
 	while (l < r) {
-		while (send_times[l] <= send_times[right]) {
+		while (l < r && send_times[l] < pivot_send_time) {
 			l++; 
 		}
-		while (send_times[r] > send_times[right]) {
+		send_times[r] = send_times[l];
+		flow_ids[r] = flow_ids[l];
+		while (l < r && send_times[r] >= pivot_send_time) {
 			r--;
 		}
-		if (l < r) {
-			SWAP(send_times[l], send_times[r]);
-			SWAP(flow_ids[l], flow_ids[r]);
-		}
+		send_times[l] = send_times[r];
+		flow_ids[l] = flow_ids[r];
 	}
-	
-	SWAP(send_times[l], send_times[right]);
-	SWAP(flow_ids[l], flow_ids[right]);
 
-	sort(send_times, flow_ids, left, l-1);
-	sort(send_times, flow_ids, l+1, right);
+	send_times[r] = pivot_send_time;
+	flow_ids[r] = pivot_flow_id;
+	
+	if (r > 0)
+		sort(send_times, flow_ids, left, r-1);
+	sort(send_times, flow_ids, r+1, right);
 }
 
-// 初始化tt的发送信息 -- 包括计算宏周期、对tt的发送报文按照时间进行排序
-int dispatch(struct vport* vport) {
-	//宏周期
+/**
+* dispatch - initialize the information sent by tt schedule: 
+*   including calculating the macro period, sorting the tt flow 
+*   according to the time of transmission. 
+* @vport: vport that should send tt flow
+*/
+int dispatch(struct vport* vport) 
+{
 	struct tt_send_info *send_info;
 	struct tt_send_cache *send_cache;
 	struct tt_table *send_table;
 	struct tt_table_item *tt_item;
-	u64 *send_times;
-	u16 *flow_ids;
+	u64 *send_times = NULL;
+	u32 *flow_ids = NULL;
 	u64 macro_period;
 	u64 size;
-	u16 i;
-	u16 k;
+	u32 i;
+	u32 k;
 	u64 temp_period;
 	u64 offset;
-	
+
 	send_info = vport->send_info;
 	send_table = rcu_dereference(vport->send_tt_table);
 	
 	if (unlikely(!send_table)) {
-		printk(KERN_ALERT "DEBUG: send_table is null!  %s %d \n", __FUNCTION__, __LINE__);
-		return -EINVAL;
+		goto error_einval;
 	}
 	
 	if (!send_info) {
 		send_info = kmalloc(sizeof(struct tt_send_info), GFP_KERNEL);
 		if (!send_info) {
-			printk(KERN_ALERT "DEBUG: send_info alloc fail!  %s %d \n", __FUNCTION__, __LINE__);
-			return -ENOMEM;
+			goto error_enomen;
 		}
 	}
 
@@ -427,27 +445,23 @@ int dispatch(struct vport* vport) {
 		size += temp_period;
 	}
 
-	//宏周期上打点
-	printk(KERN_ALERT "DEBUG: send_times macro_period = %llu ! %s %d \n", macro_period, __FUNCTION__, __LINE__);
-	printk(KERN_ALERT "DEBUG: send_times size = %llu ! %s %d \n", size, __FUNCTION__, __LINE__);
-    send_times = kmalloc(size * sizeof(u64), GFP_KERNEL);
+	send_times = kmalloc(size * sizeof(u64), GFP_KERNEL);
 	if (!send_times) {
-		printk(KERN_ALERT "DEBUG: send_times alloc fail!  %s %d \n", __FUNCTION__, __LINE__);
-		return -ENOMEM;
+		goto error_enomen;
 	}
 
-	flow_ids = kmalloc(size * sizeof(u16), GFP_KERNEL);
+	flow_ids = kmalloc(size * sizeof(u32), GFP_KERNEL);
 	if (!send_info) {
-		printk(KERN_ALERT "DEBUG: flow_ids alloc fail!  %s %d \n", __FUNCTION__, __LINE__);
-		return -ENOMEM;
+		goto error_enomen;
 	}
-
+	
 	k = 0;
 	for (i = 0; i < send_table->max; i++) {
 		tt_item = rcu_dereference(send_table->tt_items[i]);
 		if (!tt_item)
 			continue;
 		
+		pr_info("DEBUG: index %d flow_id %d", i, tt_item->flow_id);
 		offset = tt_item->base_offset;
 		while(offset < macro_period){
 			send_times[k] = offset; 
@@ -457,12 +471,13 @@ int dispatch(struct vport* vport) {
 		}
 	}
 
-	printk(KERN_ALERT "DEBUG: macro_period: %llu, size: %llu %s %d \n", macro_period, size, __FUNCTION__, __LINE__);
-	//排序
+	/* sort tt flow */
 	sort(send_times, flow_ids, 0, size - 1);
-													
+	
+	/* print info */
+	pr_info("DISPATCH: macro_period: %llu, size: %llu\n", macro_period, size);
 	for (i = 0; i < size;i++){
-		printk(KERN_ALERT "DEBUG: index %d, flow_id: %d, send_time: %llu", i, flow_ids[i], send_times[i]);
+		pr_info("DISPATCH: index %d, flow_id: %d, send_time: %llu", i, flow_ids[i], send_times[i]);
 	}
 	
 	send_cache = &send_info->send_cache;
@@ -474,16 +489,28 @@ int dispatch(struct vport* vport) {
 	vport->send_info = send_info;	
 	
 	return 0;
+
+error_einval:
+	return -EINVAL;
+error_enomen:
+	if (send_times)
+		kfree(send_times);
+	if (flow_ids)
+		kfree(flow_ids);
+	if (send_info)
+		kfree(send_info);
+	return -ENOMEM;
+
 }
 
-static u16 binarySearch(struct vport *vport, u64 mod_time)
+static u32 binarySearch(struct vport *vport, u64 mod_time)
 {
 	u64 *send_times;
-	u16 *flow_ids;
-	u16 left;
-	u16 right;
-	u16 mid;
-	u16 size;
+	u32 *flow_ids;
+	u32 left;
+	u32 right;
+	u32 mid;
+	u32 size;
 
 	send_times = vport->send_info->send_cache.send_times;
 	flow_ids = vport->send_info->send_cache.flow_ids;
@@ -503,10 +530,11 @@ static u16 binarySearch(struct vport *vport, u64 mod_time)
 	return left % size;
 }
 
-void get_next_time(struct vport *vport, u64 cur_time, u64 *wait_time, u16 *flow_id, u64 *send_time) {
+void get_next_time(struct vport *vport, u64 cur_time, u64 *wait_time, u32 *flow_id, u64 *send_time) 
+{
 	u64 mod_time;
-	u16 idx;
-	u16 next_idx;
+	u32 idx;
+	u32 next_idx;
 	struct tt_send_info *send_info;
 	struct tt_send_cache *send_cache;
 
@@ -514,7 +542,7 @@ void get_next_time(struct vport *vport, u64 cur_time, u64 *wait_time, u16 *flow_
 	send_cache = &send_info->send_cache;
 	mod_time = cur_time % send_info->macro_period;
 	
-    idx = binarySearch(vport, mod_time);
+	idx = binarySearch(vport, mod_time);
 	next_idx = idx + 1;
 	next_idx = next_idx % send_cache->size;
 
@@ -534,6 +562,6 @@ void get_next_time(struct vport *vport, u64 cur_time, u64 *wait_time, u16 *flow_
 	}
 
 	*send_time = cur_time + *send_time;
-    pr_info("SEND_INFO: mod_time %llu, cur_idx %d, current flow id %d, current send time %llu", mod_time, idx, send_cache->flow_ids[idx], send_cache->send_times[idx]);
-    pr_info("SEND_INFO: send_time %llu, wait_time %llu", *send_time, *wait_time);
+	pr_info("SEND_INFO: mod_time %llu, cur_idx %d, current flow id %d, current send time %llu", \
+			mod_time, idx, send_cache->flow_ids[idx], send_cache->send_times[idx]);
 }

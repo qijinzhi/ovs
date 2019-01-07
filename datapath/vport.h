@@ -56,18 +56,18 @@ int ovs_vport_get_upcall_portids(const struct vport *, struct sk_buff *);
 u32 ovs_vport_find_upcall_portid(const struct vport *, struct sk_buff *);
 
 int ovs_tunnel_get_egress_info(struct dp_upcall_info *upcall,
-			       struct net *net,
-			       struct sk_buff *,
-			       u8 ipproto,
-			       __be16 tp_src,
-			       __be16 tp_dst);
+				   struct net *net,
+				   struct sk_buff *,
+				   u8 ipproto,
+				   __be16 tp_src,
+				   __be16 tp_dst);
 
 int ovs_vport_get_egress_tun_info(struct vport *vport, struct sk_buff *skb,
 				  struct dp_upcall_info *upcall);
 
 /**
  * struct vport_portids - array of netlink portids of a vport.
- *                        must be protected by rcu.
+ *						must be protected by rcu.
  * @rn_ids: The reciprocal value of @n_ids.
  * @rcu: RCU callback head for deferred destruction.
  * @n_ids: Size of @ids array.
@@ -91,6 +91,11 @@ struct vport_portids {
  * @dp_hash_node: Element in @datapath->ports hash table in datapath.c.
  * @ops: Class structure.
  * @detach_list: list used for detaching vport in net-exit call.
+ * @arrive_tt_table: tt arrive table
+ * @send_tt_table: tt send table
+ * @send_info: tt send info
+ * @timer: hrtimer for tt schedule
+ * @hrtimer_flag: hrtimer should or shouldn't restart, 1 for restart, 0 for not restart
  */
 struct vport {
 	struct net_device *dev;
@@ -104,11 +109,11 @@ struct vport {
 
 	struct list_head detach_list;
 	struct rcu_head rcu;
-    struct tt_table __rcu *arrive_tt_table; //因为并不是任何一个vport都有tt的表，所以放在vport结构体里面可能不太合适，这里后期应该会有优化
-    struct tt_table __rcu *send_tt_table;
-    struct tt_send_info *send_info;
-    struct hrtimer timer;
-    u8 hrtimer_flag; //1:hrtimer restart, 0:hrtimer norestart
+	struct tt_table __rcu *arrive_tt_table; // ===>>> ?????
+	struct tt_table __rcu *send_tt_table;
+	struct tt_send_info *send_info;
+	struct hrtimer timer;
+	u8 hrtimer_flag;
 };
 
 /**
@@ -169,7 +174,7 @@ struct vport_ops {
 };
 
 struct vport *ovs_vport_alloc(int priv_size, const struct vport_ops *,
-			      const struct vport_parms *);
+				  const struct vport_parms *);
 void ovs_vport_free(struct vport *);
 void ovs_vport_deferred_free(struct vport *vport);
 
@@ -205,10 +210,10 @@ static inline struct vport *vport_from_priv(void *priv)
 }
 
 int ovs_vport_receive(struct vport *, struct sk_buff *,
-		      const struct ip_tunnel_info *);
+			  const struct ip_tunnel_info *);
 
 static inline void ovs_skb_postpush_rcsum(struct sk_buff *skb,
-				      const void *start, unsigned int len)
+					  const void *start, unsigned int len)
 {
 	if (skb->ip_summed == CHECKSUM_COMPLETE)
 		skb->csum = csum_add(skb->csum, csum_partial(start, len, 0));
@@ -229,10 +234,10 @@ int __ovs_vport_ops_register(struct vport_ops *ops);
 void ovs_vport_ops_unregister(struct vport_ops *ops);
 
 static inline struct rtable *ovs_tunnel_route_lookup(struct net *net,
-						     const struct ip_tunnel_key *key,
-						     u32 mark,
-						     struct flowi4 *fl,
-						     u8 protocol)
+							 const struct ip_tunnel_key *key,
+							 u32 mark,
+							 struct flowi4 *fl,
+							 u8 protocol)
 {
 	struct rtable *rt;
 
