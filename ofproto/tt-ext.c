@@ -22,7 +22,7 @@
 #include "ofproto-provider.h"
 #include "openvswitch/vlog.h"
 
-#include "tt.h"
+#include "tt-ext.h"
 
 VLOG_DEFINE_THIS_MODULE(tt);
 
