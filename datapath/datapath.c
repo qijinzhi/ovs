@@ -316,7 +316,7 @@ static void ovs_dp_process_tt_packet(struct sk_buff *skb)
 	
 	offset_time =  arrive_global_time % tt_item->period;
 	if (offset_time > tt_item->base_offset + MAX_JITTER) {
-		pr_info("WILL MISS: flow_id %u arrive late on vport %d!, throw it!", flow_id, p->port_no);
+		pr_info("LATE_PACKET: flow_id %u arrive late on vport %d!, throw it!", flow_id, p->port_no);
 		kfree_skb(skb);
 		return;
 	}

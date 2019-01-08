@@ -258,7 +258,7 @@ static enum hrtimer_restart hrtimer_handler(struct hrtimer *timer)
 	get_next_time(vport, global_register_time, &wait_time, &flow_id, &send_time);
 	
 	if (!(vport->dp->tt_buffer[flow_id])) {
-		pr_info("miss: vport id %d can't send flow id %u\n", vport->port_no, flow_id);
+		pr_info("MISS: vport id %d can't send flow id %u\n", vport->port_no, flow_id);
 	}
 
 	/* two tt flows send on the same time. */
@@ -276,7 +276,7 @@ static enum hrtimer_restart hrtimer_handler(struct hrtimer *timer)
 	} while (send_time - TIMESPEC_TO_NSEC(current_time) < send_info->advance_time);
 	
 	if (likely(skb != NULL)) {
-		pr_info("Finish: vport id %d send flow id %d \n", vport->port_no, flow_id);
+		pr_info("FINISH: vport id %d send flow id %d \n", vport->port_no, flow_id);
 		out_skb = skb_clone(skb, GFP_ATOMIC);
 		ovs_vport_send(vport, out_skb);
 	}
@@ -317,9 +317,9 @@ void ovs_vport_hrtimer_cancel(struct vport *vport)
 		vport->hrtimer_flag = 0;
 		while (cancelled) {
 			cancelled = hrtimer_cancel(&vport->timer);
-			pr_info("hrtimer: hrtimer is running.");
+			pr_info("HRTIMER: hrtimer is running.");
 		}
-		pr_info("hrtimer: hrtimer cancelled.");
+		pr_info("HRTIMER: hrtimer cancelled.");
 	}
 }
 
