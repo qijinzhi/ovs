@@ -28,8 +28,10 @@
 #include <linux/spinlock.h>
 #include <linux/u64_stats_sync.h>
 #include <net/route.h>
+#include <linux/hrtimer.h>
 
 #include "datapath.h"
+#include "tt.h"
 
 struct vport;
 struct vport_parms;
@@ -89,6 +91,11 @@ struct vport_portids {
  * @dp_hash_node: Element in @datapath->ports hash table in datapath.c.
  * @ops: Class structure.
  * @detach_list: list used for detaching vport in net-exit call.
+ * @arrive_tt_table: tt arrive table
+ * @send_tt_table: tt send table
+ * @send_info: tt send info
+ * @timer: hrtimer for tt schedule
+ * @hrtimer_flag: hrtimer should or shouldn't restart, 1 for restart, 0 for not restart
  */
 struct vport {
 	struct net_device *dev;
@@ -102,6 +109,11 @@ struct vport {
 
 	struct list_head detach_list;
 	struct rcu_head rcu;
+	struct tt_table __rcu *arrive_tt_table; // ===>>> ?????
+	struct tt_table __rcu *send_tt_table;
+	struct tt_send_info *send_info;
+	struct hrtimer timer;
+	u8 hrtimer_flag;
 };
 
 /**
@@ -241,4 +253,6 @@ static inline struct rtable *ovs_tunnel_route_lookup(struct net *net,
 }
 
 void ovs_vport_send(struct vport *vport, struct sk_buff *skb);
+void ovs_vport_hrtimer_init(struct vport* vport);
+void ovs_vport_hrtimer_cancel(struct vport *vport);
 #endif /* vport.h */

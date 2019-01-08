@@ -35,6 +35,7 @@
 #include <net/geneve.h>
 #include <net/vxlan.h>
 #include <net/stt.h>
+#include <linux/ktime.h>
 
 #include "datapath.h"
 #include "gso.h"
@@ -216,6 +217,11 @@ void ovs_vport_free(struct vport *vport)
 	 * it is safe to use raw dereference.
 	 */
 	kfree(rcu_dereference_raw(vport->upcall_portids));
+	ovs_vport_hrtimer_cancel(vport);
+	if (rcu_dereference_raw(vport->arrive_tt_table))
+		kfree(rcu_dereference_raw(vport->arrive_tt_table));
+	if (rcu_dereference_raw(vport->send_tt_table))
+		kfree(rcu_dereference_raw(vport->send_tt_table));
 	kfree(vport);
 }
 EXPORT_SYMBOL_GPL(ovs_vport_free);
@@ -229,6 +235,92 @@ static struct vport_ops *ovs_vport_lookup(const struct vport_parms *parms)
 			return ops;
 
 	return NULL;
+}
+
+/** hrtimer handler **/
+static enum hrtimer_restart hrtimer_handler(struct hrtimer *timer) 
+{
+	u64 global_register_time;
+	struct timespec current_time;
+	u64 wait_time;
+	u32 flow_id;
+	u64 send_time;
+
+	struct sk_buff *skb;
+	struct sk_buff *out_skb;
+	struct vport *vport;
+	struct tt_send_info *send_info;
+
+	vport = container_of(timer, struct vport, timer);
+	send_info = vport->send_info;
+	
+	global_register_time = global_time_read();  //read register time
+	get_next_time(vport, global_register_time, &wait_time, &flow_id, &send_time);
+	
+	if (!(vport->dp->tt_buffer[flow_id])) {
+		pr_info("MISS: vport id %d can't send flow id %u\n", vport->port_no, flow_id);
+	}
+
+	/* two tt flows send on the same time. */
+	if (0 == wait_time) {
+		wait_time = send_time - global_register_time + send_info->advance_time; 
+	}
+
+	hrtimer_forward_now(timer, ns_to_ktime(wait_time));
+	
+	skb = vport->dp->tt_buffer[flow_id];
+	//vport->dp->tt_buffer[flow_id] = NULL;
+	
+	do {   
+		getnstimeofday(&current_time);
+	} while (send_time - TIMESPEC_TO_NSEC(current_time) < send_info->advance_time);
+	
+	if (likely(skb != NULL)) {
+		pr_info("FINISH: vport id %d send flow id %d \n", vport->port_no, flow_id);
+		out_skb = skb_clone(skb, GFP_ATOMIC);
+		ovs_vport_send(vport, out_skb);
+	}
+
+	if (vport->hrtimer_flag)
+		return HRTIMER_RESTART;
+	else
+		return HRTIMER_NORESTART;
+}
+
+/** hrtimer init **/
+void ovs_vport_hrtimer_init(struct vport* vport) 
+{ 
+	u64 global_register_time;
+	u64 offset_time;
+	struct timespec current_time;
+	struct tt_send_info *send_info;
+
+	send_info = vport->send_info;
+	hrtimer_init(&vport->timer, CLOCK_REALTIME, HRTIMER_MODE_ABS);
+	vport->timer.function = hrtimer_handler;
+	vport->hrtimer_flag = 1;
+
+	global_register_time = global_time_read();  //read register time
+	getnstimeofday(&current_time);
+													 
+	offset_time = global_register_time % send_info->macro_period;
+	offset_time = send_info->macro_period - offset_time;
+	hrtimer_start(&vport->timer, ns_to_ktime(TIMESPEC_TO_NSEC(current_time) \
+				+ offset_time - send_info->advance_time), HRTIMER_MODE_ABS); 
+}
+
+/** hrtimer cancel **/
+void ovs_vport_hrtimer_cancel(struct vport *vport) 
+{
+	int cancelled = 1;
+	if (1 == vport->hrtimer_flag) {
+		vport->hrtimer_flag = 0;
+		while (cancelled) {
+			cancelled = hrtimer_cancel(&vport->timer);
+			pr_info("HRTIMER: hrtimer is running.");
+		}
+		pr_info("HRTIMER: hrtimer cancelled.");
+	}
 }
 
 /**

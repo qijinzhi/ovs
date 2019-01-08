@@ -51,6 +51,7 @@
 #include "flow_netlink.h"
 #include "vport.h"
 #include "vlan.h"
+#include "tt.h"
 
 u64 ovs_flow_used_time(unsigned long flow_jiffies)
 {
@@ -676,6 +677,28 @@ static int key_extract(struct sk_buff *skb, struct sw_flow_key *key)
 				memset(&key->tp, 0, sizeof(key->tp));
 			}
 		}
+	}
+	else if (eth_p_tt(key->eth.type)) { /* extract tt flow message. */
+		struct iphdr *nh;
+		skb_set_network_header(skb, skb->mac_len + TT_HLEN);
+		error = check_iphdr(skb);
+		if (unlikely(error)) {
+			return error;
+		}
+
+		nh = ip_hdr(skb);
+		if (nh->protocol != IPPROTO_UDP) 
+			error = -EINVAL;
+		else if (udphdr_ok(skb)) {
+			struct udphdr *udp = udp_hdr(skb);
+			if (!udp_port_is_tt(udp->dest))
+				error = -EINVAL;
+		}
+		else {
+			error = -EINVAL;
+		}
+		if (error)
+			return error;
 	}
 	return 0;
 }
