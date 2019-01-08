@@ -7144,7 +7144,6 @@ handle_tt_flow_ctrl(struct ofconn *ofconn, const struct ofp_header *oh)
     if (error) {
         return error;
     }
-    reply.command = tfctrl.command;
     reply.flow_count = tfctrl.flow_count;
 
     VLOG_INFO_RL(&rl, "TT control msg: flow_count %d", tfctrl.flow_count);
