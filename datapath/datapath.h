@@ -33,7 +33,7 @@
 #include "flow_table.h"
 #include "vlan.h"
 
-#define DP_MAX_PORTS		   USHRT_MAX
+#define DP_MAX_PORTS           USHRT_MAX
 #define DP_VPORT_HASH_BUCKETS  1024
 
 #define SAMPLE_ACTION_DEPTH 3
