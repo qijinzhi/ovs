@@ -97,17 +97,17 @@ void ovs_flow_stats_update(struct sw_flow *flow, __be16 tcp_flags,
 			 * allocated stats as we have already locked them.
 			 */
 			if (likely(flow->stats_last_writer != NUMA_NO_NODE)
-		        && likely(!rcu_access_pointer(flow->stats[node]))) {
+			    && likely(!rcu_access_pointer(flow->stats[node]))) {
 				/* Try to allocate node-specific stats. */
 				struct flow_stats *new_stats;
 
 				new_stats =
 					kmem_cache_alloc_node(flow_stats_cache,
-                                GFP_NOWAIT |
-                                __GFP_THISNODE |
-                                __GFP_NOWARN |
-                                __GFP_NOMEMALLOC,
-                                node);
+                                                              GFP_NOWAIT |
+                                                              __GFP_THISNODE |
+                                                              __GFP_NOWARN |
+							      __GFP_NOMEMALLOC,
+							      node);
 				if (likely(new_stats)) {
 					new_stats->used = jiffies;
 					new_stats->packet_count = 1;
@@ -207,7 +207,7 @@ static int check_iphdr(struct sk_buff *skb)
 
 	ip_len = ip_hdrlen(skb);
 	if (unlikely(ip_len < sizeof(struct iphdr) ||
-		    skb->len < nh_ofs + ip_len))
+		     skb->len < nh_ofs + ip_len))
 		return -EINVAL;
 
 	skb_set_transport_header(skb, nh_ofs + ip_len);
@@ -224,7 +224,7 @@ static bool tcphdr_ok(struct sk_buff *skb)
 
 	tcp_len = tcp_hdrlen(skb);
 	if (unlikely(tcp_len < sizeof(struct tcphdr) ||
-		    skb->len < th_ofs + tcp_len))
+		     skb->len < th_ofs + tcp_len))
 		return false;
 
 	return true;
@@ -346,8 +346,8 @@ static __be16 parse_ethertype(struct sk_buff *skb)
 
 	llc = (struct llc_snap_hdr *) skb->data;
 	if (llc->dsap != LLC_SAP_SNAP ||
-		llc->ssap != LLC_SAP_SNAP ||
-		(llc->oui[0] | llc->oui[1] | llc->oui[2]) != 0)
+	    llc->ssap != LLC_SAP_SNAP ||
+	    (llc->oui[0] | llc->oui[1] | llc->oui[2]) != 0)
 		return htons(ETH_P_802_2);
 
 	__skb_pull(skb, sizeof(struct llc_snap_hdr));
@@ -371,8 +371,8 @@ static int parse_icmpv6(struct sk_buff *skb, struct sw_flow_key *key,
 	memset(&key->ipv6.nd, 0, sizeof(key->ipv6.nd));
 
 	if (icmp->icmp6_code == 0 &&
-    (icmp->icmp6_type == NDISC_NEIGHBOUR_SOLICITATION ||
-     icmp->icmp6_type == NDISC_NEIGHBOUR_ADVERTISEMENT)) {
+	    (icmp->icmp6_type == NDISC_NEIGHBOUR_SOLICITATION ||
+	     icmp->icmp6_type == NDISC_NEIGHBOUR_ADVERTISEMENT)) {
 		int icmp_len = skb->len - skb_transport_offset(skb);
 		struct nd_msg *nd;
 		int offset;
@@ -404,7 +404,7 @@ static int parse_icmpv6(struct sk_buff *skb, struct sw_flow_key *key,
 			 * the same link layer option is specified twice.
 			 */
 			if (nd_opt->nd_opt_type == ND_OPT_SOURCE_LL_ADDR
-		    && opt_len == 8) {
+			    && opt_len == 8) {
 				if (unlikely(!is_zero_ether_addr(key->ipv6.nd.sll)))
 					goto invalid;
 				ether_addr_copy(key->ipv6.nd.sll,
@@ -622,7 +622,7 @@ static int key_extract(struct sk_buff *skb, struct sw_flow_key *key)
 			stack_len += MPLS_HLEN;
 		}
 	} else if (key->eth.type == htons(ETH_P_IPV6)) {
-		int nh_len;         /* IPv6 Header + Extensions */
+		int nh_len;             /* IPv6 Header + Extensions */
 
 		nh_len = parse_ipv6hdr(skb, key);
 		if (unlikely(nh_len < 0)) {
@@ -718,7 +718,7 @@ int ovs_flow_key_extract(const struct ip_tunnel_info *tun_info,
 
 		memcpy(&key->tun_key, &tun_info->key, sizeof(key->tun_key));
 		BUILD_BUG_ON(((1 << (sizeof(tun_info->options_len) * 8)) - 1) >
-				 sizeof(key->tun_opts));
+			     sizeof(key->tun_opts));
 
 		if (tun_info->options_len) {
 			ip_tunnel_info_opts_get(TUN_METADATA_OPTS(key, tun_info->options_len),

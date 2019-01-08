@@ -56,18 +56,18 @@ int ovs_vport_get_upcall_portids(const struct vport *, struct sk_buff *);
 u32 ovs_vport_find_upcall_portid(const struct vport *, struct sk_buff *);
 
 int ovs_tunnel_get_egress_info(struct dp_upcall_info *upcall,
-				   struct net *net,
-				   struct sk_buff *,
-				   u8 ipproto,
-				   __be16 tp_src,
-				   __be16 tp_dst);
+			       struct net *net,
+			       struct sk_buff *,
+			       u8 ipproto,
+			       __be16 tp_src,
+			       __be16 tp_dst);
 
 int ovs_vport_get_egress_tun_info(struct vport *vport, struct sk_buff *skb,
 				  struct dp_upcall_info *upcall);
 
 /**
  * struct vport_portids - array of netlink portids of a vport.
- *						must be protected by rcu.
+ *                        must be protected by rcu.
  * @rn_ids: The reciprocal value of @n_ids.
  * @rcu: RCU callback head for deferred destruction.
  * @n_ids: Size of @ids array.
@@ -174,7 +174,7 @@ struct vport_ops {
 };
 
 struct vport *ovs_vport_alloc(int priv_size, const struct vport_ops *,
-				  const struct vport_parms *);
+			      const struct vport_parms *);
 void ovs_vport_free(struct vport *);
 void ovs_vport_deferred_free(struct vport *vport);
 
@@ -210,10 +210,10 @@ static inline struct vport *vport_from_priv(void *priv)
 }
 
 int ovs_vport_receive(struct vport *, struct sk_buff *,
-			  const struct ip_tunnel_info *);
+		      const struct ip_tunnel_info *);
 
 static inline void ovs_skb_postpush_rcsum(struct sk_buff *skb,
-					  const void *start, unsigned int len)
+				      const void *start, unsigned int len)
 {
 	if (skb->ip_summed == CHECKSUM_COMPLETE)
 		skb->csum = csum_add(skb->csum, csum_partial(start, len, 0));
@@ -234,10 +234,10 @@ int __ovs_vport_ops_register(struct vport_ops *ops);
 void ovs_vport_ops_unregister(struct vport_ops *ops);
 
 static inline struct rtable *ovs_tunnel_route_lookup(struct net *net,
-							 const struct ip_tunnel_key *key,
-							 u32 mark,
-							 struct flowi4 *fl,
-							 u8 protocol)
+						     const struct ip_tunnel_key *key,
+						     u32 mark,
+						     struct flowi4 *fl,
+						     u8 protocol)
 {
 	struct rtable *rt;
 

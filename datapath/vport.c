@@ -58,7 +58,7 @@ int ovs_vport_init(void)
 	int err;
 
 	dev_table = kzalloc(VPORT_HASH_BUCKETS * sizeof(struct hlist_head),
-				GFP_KERNEL);
+			    GFP_KERNEL);
 	if (!dev_table)
 		return -ENOMEM;
 
@@ -154,7 +154,7 @@ struct vport *ovs_vport_locate(const struct net *net, const char *name)
 
 	hlist_for_each_entry_rcu(vport, bucket, hash_node)
 		if (!strcmp(name, ovs_vport_name(vport)) &&
-			net_eq(ovs_dp_get_net(vport->dp), net))
+		    net_eq(ovs_dp_get_net(vport->dp), net))
 			return vport;
 
 	return NULL;
@@ -350,9 +350,8 @@ struct vport *ovs_vport_add(const struct vport_parms *parms)
 		}
 
 		bucket = hash_bucket(ovs_dp_get_net(vport->dp),
-					 ovs_vport_name(vport));
+				     ovs_vport_name(vport));
 		hlist_add_head_rcu(&vport->hash_node, bucket);
-
 		return vport;
 	}
 
@@ -397,7 +396,7 @@ int ovs_vport_set_options(struct vport *vport, struct nlattr *options)
 void ovs_vport_del(struct vport *vport)
 {
 	ASSERT_OVSL();
-	
+
 	hlist_del_rcu(&vport->hash_node);
 	module_put(vport->ops->owner);
 	vport->ops->destroy(vport);
@@ -537,7 +536,7 @@ int ovs_vport_get_upcall_portids(const struct vport *vport,
 
 	if (vport->dp->user_features & OVS_DP_F_VPORT_PIDS)
 		return nla_put(skb, OVS_VPORT_ATTR_UPCALL_PID,
-				   ids->n_ids * sizeof(u32), (void *)ids->ids);
+			       ids->n_ids * sizeof(u32), (void *)ids->ids);
 	else
 		return nla_put_u32(skb, OVS_VPORT_ATTR_UPCALL_PID, ids->ids[0]);
 }
@@ -580,7 +579,7 @@ u32 ovs_vport_find_upcall_portid(const struct vport *vport, struct sk_buff *skb)
  * skb->data should point to the Ethernet header.
  */
 int ovs_vport_receive(struct vport *vport, struct sk_buff *skb,
-			  const struct ip_tunnel_info *tun_info)
+		      const struct ip_tunnel_info *tun_info)
 {
 	struct sw_flow_key key;
 	int error;
@@ -598,7 +597,6 @@ int ovs_vport_receive(struct vport *vport, struct sk_buff *skb,
 
 	ovs_skb_init_inner_protocol(skb);
 	skb_clear_ovs_gso_cb(skb);
-	
 	/* Extract flow from 'skb' into 'key'. */
 	error = ovs_flow_key_extract(tun_info, skb, &key);
 	if (unlikely(error)) {
@@ -627,11 +625,11 @@ void ovs_vport_deferred_free(struct vport *vport)
 EXPORT_SYMBOL_GPL(ovs_vport_deferred_free);
 
 int ovs_tunnel_get_egress_info(struct dp_upcall_info *upcall,
-				   struct net *net,
-				   struct sk_buff *skb,
-				   u8 ipproto,
-				   __be16 tp_src,
-				   __be16 tp_dst)
+			       struct net *net,
+			       struct sk_buff *skb,
+			       u8 ipproto,
+			       __be16 tp_src,
+			       __be16 tp_dst)
 {
 	struct ip_tunnel_info *egress_tun_info = upcall->egress_tun_info;
 	struct ip_tunnel_info *tun_info = skb_tunnel_info(skb);
@@ -700,8 +698,8 @@ void ovs_vport_send(struct vport *vport, struct sk_buff *skb)
 
 	if (unlikely(packet_length(skb) > mtu && !skb_is_gso(skb))) {
 		net_warn_ratelimited("%s: dropped over-mtu packet: %d > %d\n",
-					 vport->dev->name,
-					 packet_length(skb), mtu);
+				     vport->dev->name,
+				     packet_length(skb), mtu);
 		vport->dev->stats.tx_errors++;
 		goto drop;
 	}
