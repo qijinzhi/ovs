@@ -28,7 +28,7 @@
 #define ETH_P_TT 0x88D7 /* tt flow ethernet type */
 
 #define TT_HLEN 4   /* tt header length */
-#define TT_TABLE_SIZE_MIN 4	/* minimum size of tt_table */
+#define TT_TABLE_SIZE_MIN 16	/* minimum size of tt_table */
 #define TT_BUFFER_SIZE 4096 /* one flow one buffer */
 #define MAX_JITTER 100000
 #define NSEC_PER_SECOND 1000000000
