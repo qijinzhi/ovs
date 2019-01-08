@@ -62,6 +62,7 @@
 #include "unixctl.h"
 #include "openvswitch/vlog.h"
 #include "bundles.h"
+#include "tt-ext.h"
 
 VLOG_DEFINE_THIS_MODULE(ofproto);
 
@@ -7149,14 +7150,12 @@ handle_tt_flow_ctrl(struct ofconn *ofconn, const struct ofp_header *oh)
     VLOG_INFO_RL(&rl, "TT control msg: flow_count %d", tfctrl.flow_count);
 
     switch (tfctrl.type) {
-    case ONF_TFCT_DOWNLOAD_START_REQUEST: 
-        // error = onf_tt_flow_receive_start(ofconn, 
-        //              tfctrl.command, tfctrl.flow_number);
+    case ONF_TFCT_DOWNLOAD_START_REQUEST:
+        error = onf_tt_flow_receive_start(ofconn, tfctrl.flow_count);
         reply.type = ONF_TFCT_DOWNLOAD_START_REPLY;
         break;
     case ONF_TFCT_DOWNLOAD_END_REQUEST:
-        // error = onf_tt_flow_receive_end(ofconn,
-        //              tfctrl.command, tfctrl.flow_number);
+        error = onf_tt_flow_receive_end(ofconn);
         reply.type = ONF_TFCT_DOWNLOAD_END_REPLY;
         break;
     case ONF_TFCT_CLEAR_OLD_REQUEST:
