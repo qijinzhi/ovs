@@ -27,22 +27,26 @@
 VLOG_DEFINE_THIS_MODULE(tt);
 
 enum ofperr 
-onf_tt_flow_receive_start(struct ofconn *ofconn, unsigned int flow_cnt)
+onf_tt_flow_receive_start(struct ofconn *ofconn, uint32_t flow_cnt)
 {
-    enum ofperr error;
+    //enum ofperr error;
    
     /* TODO(zhanghao):
      * 1. switch command type
      * 2. send flow count to kernel
      */
+    struct ofproto *ofproto = ofconn_get_ofproto(ofconn);
+    ofproto->ofproto_class->tt_flow_receive_start(ofproto, flow_cnt);
 
-    return error;
+    //return error;
+    return 0;
 }
+
 
 enum ofperr 
 onf_tt_flow_receive_end(struct ofconn *ofconn)
 {
-    enum ofperr error;
+    //enum ofperr error;
 
     /* TODO(zhanghao):
      * 1. send end msg to kernel
@@ -50,6 +54,9 @@ onf_tt_flow_receive_end(struct ofconn *ofconn)
      * 3. judgu whether result is error
      * 4. if error reply error msg
      */
-
-    return error;
+    struct ofproto *ofproto = ofconn_get_ofproto(ofconn);
+    ofproto->ofproto_class->tt_flow_receive_end(ofproto);
+    //return error;
+    return 0;
 }
+

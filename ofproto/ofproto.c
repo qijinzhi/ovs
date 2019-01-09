@@ -7116,7 +7116,7 @@ tt_flow_mod(struct ofconn *ofconn, struct ofputil_tt_flow_mod_msg *ttm)
     struct ofproto *ofproto = ofconn_get_ofproto(ofconn);
     //switch (ttm->command) {
         //case OFPFC_ADD:
-            VLOG_INFO("TT mod msg received OFPFC_ADD command!\n");
+            //VLOG_INFO("TT mod msg received OFPFC_ADD command!\n");
             ofproto->ofproto_class->tt_flow_add(ofproto, ttm);
     //}
     return 0;
@@ -7184,7 +7184,7 @@ static enum ofperr
 handle_tt_flow_mod(struct ofconn *ofconn, const struct ofp_header *oh)
 {
     /* Test for recv frame by chen weihang */
-    VLOG_INFO("TT mod msg received!\n");
+    //VLOG_INFO("TT mod msg received!\n");
     
     struct ofputil_tt_flow_mod_msg ttm;
     enum ofperr error;
