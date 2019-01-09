@@ -2316,16 +2316,16 @@ struct genl_family dp_vport_genl_family = {
 /* tt */
 static const struct nla_policy tt_policy[] = {
     [OVS_TT_FLOW_ATTR_FLOW_CNT] = { .type = NLA_U32 },
-    [OVS_TT_FLOW_ATTR_FLOW_START] = { .type = NLA_U8 },
+    [OVS_TT_FLOW_ATTR_FLOW_START] = { .type = NLA_U8 }, 
     [OVS_TT_FLOW_ATTR_FLOW_END] = { .type = NLA_U8 },
-	[OVS_TT_FLOW_ATTR_PORT] = { .type = NLA_U32 },
-	[OVS_TT_FLOW_ATTR_ETYPE] = { .type = NLA_U32 },
-	[OVS_TT_FLOW_ATTR_FLOW_ID] = { .type = NLA_U32 },
-	[OVS_TT_FLOW_ATTR_BASE_OFFSET] = { .type = NLA_U64 },
-	[OVS_TT_FLOW_ATTR_PERIOD] = { .type = NLA_U64 },
-	[OVS_TT_FLOW_ATTR_BUFFER_ID] = { .type = NLA_U32 },
-	[OVS_TT_FLOW_ATTR_PACKET_SIZE] = { .type = NLA_U32 },
-	[OVS_TT_FLOW_ATTR_EXECUTE_TIME] = { .type = NLA_U64 },
+    [OVS_TT_FLOW_ATTR_PORT] = { .type = NLA_U32 },
+    [OVS_TT_FLOW_ATTR_ETYPE] = { .type = NLA_U32 },
+    [OVS_TT_FLOW_ATTR_FLOW_ID] = { .type = NLA_U32 },
+    [OVS_TT_FLOW_ATTR_BASE_OFFSET] = { .type = NLA_U64 },
+    [OVS_TT_FLOW_ATTR_PERIOD] = { .type = NLA_U64 },
+    [OVS_TT_FLOW_ATTR_BUFFER_ID] = { .type = NLA_U32 },
+    [OVS_TT_FLOW_ATTR_PACKET_SIZE] = { .type = NLA_U32 },
+    [OVS_TT_FLOW_ATTR_EXECUTE_TIME] = { .type = NLA_U64 },
 };
 
 static int ovs_tt_cmd_put(struct sk_buff *skb, struct genl_info *info)
@@ -2502,10 +2502,10 @@ static struct genl_ops dp_tt_genl_ops[] = {
         .policy = tt_policy,
         .doit = ovs_tt_cmd_add,
     },
-	{	.cmd = OVS_TT_FLOW_CMD_PUT,
-		.policy = tt_policy,
-		.doit = ovs_tt_cmd_put,
-	},
+    {   .cmd = OVS_TT_FLOW_CMD_PUT,
+        .policy = tt_policy,
+        .doit = ovs_tt_cmd_put,
+    },
 };
 
 static struct genl_family dp_tt_genl_family = {
