@@ -2481,12 +2481,12 @@ static int ovs_tt_cmd_add(struct sk_buff *skb, struct genl_info *info)
         start = *(bool *)nla_data(a[OVS_TT_FLOW_ATTR_FLOW_START]);
         if (start)
             pr_info("Receive tt flow start!\n");
+        
+        if (a[OVS_TT_FLOW_ATTR_FLOW_CNT]) {
+            flow_cnt = *(u32 *)nla_data(a[OVS_TT_FLOW_ATTR_FLOW_CNT]);
+            pr_info("I get the OVS_TT_FLOW_ATTR_FLOW_CNT: %d\n", flow_cnt);
+        }
     }
-    
-	if (a[OVS_TT_FLOW_ATTR_FLOW_CNT]) {
-		flow_cnt = *(u32 *)nla_data(a[OVS_TT_FLOW_ATTR_FLOW_CNT]);
-		pr_info("I get the OVS_TT_FLOW_ATTR_FLOW_CNT: %d\n", flow_cnt);
-	}
     
     if (a[OVS_TT_FLOW_ATTR_FLOW_END]) {
         end = *(bool *)nla_data(a[OVS_TT_FLOW_ATTR_FLOW_END]);

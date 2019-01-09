@@ -2446,7 +2446,13 @@ dpif_netlink_init_tt_flow_add(struct dpif_netlink *dpif,
     request->dp_ifindex = dpif->dp_ifindex;
     request->flow_cnt = add->flow_cnt;
     request->start = add->start;
+    if (add->start) {
+        request->flow_cnt = add->flow_cnt;
+    }
     request->end = add->end;
+    if (add->end) {
+        request->flow_cnt = 0;
+    }
     //dpif_netlink_flow_init_ufid(request, put->ufid, false);
 }
 
