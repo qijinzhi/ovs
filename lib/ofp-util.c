@@ -9324,6 +9324,8 @@ ofputil_is_bundlable(enum ofptype type)
         /* Minimum required by OpenFlow 1.4. */
     case OFPTYPE_PORT_MOD:
     case OFPTYPE_FLOW_MOD:
+        /* TT extension. */
+    case OFPTYPE_ONF_TT_FLOW_MOD:
         return true;
 
         /* Nice to have later. */
@@ -9402,7 +9404,6 @@ ofputil_is_bundlable(enum ofptype type)
     case OFPTYPE_NXT_TLV_TABLE_REQUEST:
     case OFPTYPE_NXT_TLV_TABLE_REPLY:
     case OFPTYPE_ONF_TT_FLOW_CONTROL:
-    case OFPTYPE_ONF_TT_FLOW_MOD:
         break;
     }
 

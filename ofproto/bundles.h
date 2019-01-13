@@ -37,6 +37,7 @@ struct ofp_bundle_entry {
     union {
         struct ofproto_flow_mod ofm;   /* ofm.fm.ofpacts must be malloced. */
         struct ofproto_port_mod opm;
+        struct ofputil_tt_flow_mod_msg ttm;
     };
 
     /* OpenFlow header and some of the message contents for error reporting. */
