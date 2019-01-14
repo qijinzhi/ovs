@@ -860,12 +860,19 @@ bool dpif_supports_tnl_push_pop(const struct dpif *);
 
 /* tt */
 enum dpif_tt_op_type {
-    DPIF_OP_TT_FLOW_PUT = 1,
+    DPIF_OP_TT_FLOW_ADD = 1,
+    DPIF_OP_TT_FLOW_PUT,
     DPIF_OP_TT_FLOW_DEL,
     DPIF_OP_TT_FLOW_GET,
 };
 
-struct dpif_tt_flow_put {
+struct dpif_tt_flow_add {
+    ovs_be32 flow_cnt;
+    bool start;
+    bool end;
+};
+
+struct dpif_tt_flow {
     /* Entry field */
     ovs_be32 port; /* The entry related port. */
     ovs_be32 etype; /* Send entry or receive entry. */
@@ -881,25 +888,14 @@ struct dpif_tt_op {
     enum dpif_tt_op_type type;
     int error;
     union {
-        struct dpif_tt_flow_put tt_flow_put;
+        struct dpif_tt_flow_add tt_flow_add;
+        struct dpif_tt_flow tt_flow_put;
         /*
         struct dpif_tt_flow_del tt_flow_del;
-        struct dpif_execute execute;
+        struct dpif_tt_flow execute;
         struct dpif_tt_flow_get tt_flow_get;
         */
     } u;
-};
-
-struct dpif_tt_flow {
-    /* Entry field */
-    ovs_be32 port; /* The entry related port. */
-    ovs_be32 etype; /* Send entry or receive entry. */
-    ovs_be32 flow_id; /* The identify of a flow. */
-    ovs_be64 base_offset; /* The scheduled time that the flow packet is received or sent. */
-    ovs_be64 period; /* The scheduling period. */
-    ovs_be32 buffer_id; /* Buffered packet to apply to. */
-    ovs_be32 packet_size; /* The flow packet size. */
-    ovs_be64 execute_time; /* The time this entry take effect. */
 };
 
 int dpif_tt_flow_put(struct dpif *dpif, 
@@ -908,6 +904,9 @@ int dpif_tt_flow_put(struct dpif *dpif,
                      ovs_be32 buffer_id, ovs_be32 packet_size, ovs_be64 execute_time);
 void dpif_tt_operate(struct dpif *dpif, struct dpif_tt_op **ops, size_t n_ops);
 
+int dpif_tt_flow_receive_start(struct dpif *dpif, unsigned int flow_cnt);
+
+int dpif_tt_flow_receive_end(struct dpif *dpif);
 #ifdef  __cplusplus
 }
 #endif

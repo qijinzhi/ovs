@@ -62,6 +62,7 @@
 #include "unixctl.h"
 #include "openvswitch/vlog.h"
 #include "bundles.h"
+#include "tt-ext.h"
 
 VLOG_DEFINE_THIS_MODULE(ofproto);
 
@@ -7115,7 +7116,7 @@ tt_flow_mod(struct ofconn *ofconn, struct ofputil_tt_flow_mod_msg *ttm)
     struct ofproto *ofproto = ofconn_get_ofproto(ofconn);
     //switch (ttm->command) {
         //case OFPFC_ADD:
-            VLOG_INFO("TT mod msg received OFPFC_ADD command!\n");
+            //VLOG_INFO("TT mod msg received OFPFC_ADD command!\n");
             ofproto->ofproto_class->tt_flow_add(ofproto, ttm);
     //}
     return 0;
@@ -7143,20 +7144,17 @@ handle_tt_flow_ctrl(struct ofconn *ofconn, const struct ofp_header *oh)
     if (error) {
         return error;
     }
-    reply.command = tfctrl.command;
     reply.flow_count = tfctrl.flow_count;
 
     VLOG_INFO_RL(&rl, "TT control msg: flow_count %d", tfctrl.flow_count);
 
     switch (tfctrl.type) {
-    case ONF_TFCT_DOWNLOAD_START_REQUEST: 
-        // error = onf_tt_flow_receive_start(ofconn, 
-        //              tfctrl.command, tfctrl.flow_number);
+    case ONF_TFCT_DOWNLOAD_START_REQUEST:
+        error = onf_tt_flow_receive_start(ofconn, tfctrl.flow_count);
         reply.type = ONF_TFCT_DOWNLOAD_START_REPLY;
         break;
     case ONF_TFCT_DOWNLOAD_END_REQUEST:
-        // error = onf_tt_flow_receive_end(ofconn,
-        //              tfctrl.command, tfctrl.flow_number);
+        error = onf_tt_flow_receive_end(ofconn);
         reply.type = ONF_TFCT_DOWNLOAD_END_REPLY;
         break;
     case ONF_TFCT_CLEAR_OLD_REQUEST:
@@ -7186,7 +7184,7 @@ static enum ofperr
 handle_tt_flow_mod(struct ofconn *ofconn, const struct ofp_header *oh)
 {
     /* Test for recv frame by chen weihang */
-    VLOG_INFO("TT mod msg received!\n");
+    //VLOG_INFO("TT mod msg received!\n");
     
     struct ofputil_tt_flow_mod_msg ttm;
     enum ofperr error;
