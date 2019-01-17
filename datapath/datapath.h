@@ -91,7 +91,7 @@ struct datapath {
 	possible_net_t net;
 
 	u32 user_features;
-	struct sk_buff** tt_buffer; //===> maybe should add rcu ???
+	struct sk_buff** tt_buffer;
 };
 
 /**
