@@ -2346,6 +2346,12 @@ dpif_netlink_ct_flush(struct dpif *dpif OVS_UNUSED, const uint16_t *zone)
 /* tt extension*/
 /* Appends to 'buf' (which must initially be empty) a "struct ovs_header"
  * followed by Netlink attributes corresponding to 'flow'. */
+enum entry_type {
+    UNSPEC_ENTRY,
+    FIRST_ENTRY,
+    LAST_ENTRY,
+};
+
 struct dpif_netlink_tt_flow {
     /* Generic Netlink header.*/
     uint8_t cmd;
@@ -2355,6 +2361,10 @@ struct dpif_netlink_tt_flow {
     int dp_ifindex;
     
     /* Attributes. */
+    ovs_be16 table_id;       /* OVS_TT_FLOW_ATTR_TABLE_ID */
+    enum entry_type flag;    /* OVS_TT_FLOW_ATTR_FALG */
+    ovs_be32 table_size;     /* OVS_TT_FLOW_ATTR_TABLE_SIZE */
+    
     ovs_be32 port;           /* OVS_TT_FLOW_ATTR_PORT. */
     ovs_be32 etype;          /* OVS_TT_FLOW_ATTR_ETYPE. */
     ovs_be32 flow_id;        /* OVS_TT_FLOW_ATTR_FLOW_ID. */
@@ -2386,6 +2396,11 @@ dpif_netlink_tt_flow_to_ofpbuf(const struct dpif_netlink_tt_flow *flow,
     ovs_header->dp_ifindex = flow->dp_ifindex;
     
     if (flow) {
+        nl_msg_put_u16(buf, OVS_TT_FLOW_ATTR_TABLE_ID, flow->table_id);
+        nl_msg_put_u32(buf, OVS_TT_FLOW_ATTR_FLAG, flow->flag);
+        if (flow->flag == FIRST_ENTRY) {
+            nl_msg_put_u32(buf, OVS_TT_FLOW_ATTR_TABLE_SIZE, flow->table_size);
+        }
         nl_msg_put_u32(buf, OVS_TT_FLOW_ATTR_PORT, flow->port);
         nl_msg_put_u32(buf, OVS_TT_FLOW_ATTR_ETYPE, flow->etype);
         nl_msg_put_u32(buf, OVS_TT_FLOW_ATTR_FLOW_ID, flow->flow_id);
@@ -2403,7 +2418,24 @@ dpif_netlink_init_tt_flow_put(struct dpif_netlink *dpif,
                            struct dpif_netlink_tt_flow *request)
 {
     dpif_netlink_tt_flow_init(request);
-    request->cmd = OVS_TT_FLOW_CMD_NEW;
+    request->cmd = OVS_TT_FLOW_CMD_ADD;
+    
+    request->flag = (put->metadata >> 24) & 0x000000FF;
+    switch (request->flag) {
+    case 1: 
+        request->flag = FIRST_ENTRY;
+        request->table_size = put->metadata & 0x00FFFFFF;
+        break;
+    case 2:
+        request->flag = LAST_ENTRY;
+        request->table_size = 0;
+        break;
+    case 0:
+        request->flag = UNSPEC_ENTRY;
+        request->table_size = 0;
+        break;
+    }
+    request->table_id = put->table_id;
     request->port = put->port;
     request->etype = put->etype;
     request->flow_id = put->flow_id;

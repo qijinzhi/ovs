@@ -62,7 +62,6 @@
 #include "unixctl.h"
 #include "openvswitch/vlog.h"
 #include "bundles.h"
-#include "tt-ext.h"
 
 VLOG_DEFINE_THIS_MODULE(ofproto);
 
@@ -7065,7 +7064,7 @@ handle_bundle_add(struct ofconn *ofconn, const struct ofp_header *oh)
                                           bmsg->ofm.fm.ofpacts_len);
         }
     } else if (type == OFPTYPE_ONF_TT_FLOW_MOD) {
-        VLOG_INFO("tt flow msg add!!!!!!!!!!!!!!!!\n");
+        VLOG_INFO("tt flow msg add!\n");
         error = ofputil_decode_tt_table_mod(badd.msg, &bmsg->ttm);
     } else {
         OVS_NOT_REACHED();
@@ -7153,14 +7152,12 @@ handle_tt_flow_ctrl(struct ofconn *ofconn, const struct ofp_header *oh)
     if (error) {
         return error;
     }
-    reply.flow_count = tfctrl.flow_count;
-
-    VLOG_INFO_RL(&rl, "TT control msg: flow_count %d", tfctrl.flow_count);
 
     switch (tfctrl.type) {
     case ONF_TFCT_ADD_TABLE_REQUEST:
         // TODO(chenweihang):
         // error = onf_tt_flow_receive_start(ofconn, tfctrl.flow_count);
+        reply.table_id = tfctrl.table_id;
         reply.type = ONF_TFCT_ADD_TABLE_REPLY;
         break;
     case ONF_TFCT_DELETE_TABLE_REQUEST:

@@ -2314,7 +2314,10 @@ struct genl_family dp_vport_genl_family = {
 };
 
 /* tt */
-static const struct nla_policy tt_policy[] = {
+static const struct nla_policy tt_policy[OVS_TT_FLOW_ATTR_MAX + 1] = {
+    [OVS_TT_FLOW_ATTR_TABLE_ID] = { .type = NLA_U16 },
+    [OVS_TT_FLOW_ATTR_FLAG] = { .type = NLA_U32 },
+    [OVS_TT_FLOW_ATTR_TABLE_SIZE] = { .type = NLA_U32 },
 	[OVS_TT_FLOW_ATTR_PORT] = { .type = NLA_U32 },
 	[OVS_TT_FLOW_ATTR_ETYPE] = { .type = NLA_U32 },
 	[OVS_TT_FLOW_ATTR_FLOW_ID] = { .type = NLA_U32 },
@@ -2325,8 +2328,17 @@ static const struct nla_policy tt_policy[] = {
 	[OVS_TT_FLOW_ATTR_EXECUTE_TIME] = { .type = NLA_U64 },
 };
 
+enum entry_type {
+    UNSPEC_ENTRY,
+    FIRST_ENTRY,
+    LAST_ENTRY,
+};
+
 static int ovs_tt_cmd_add(struct sk_buff *skb, struct genl_info *info)
 {
+    u16 table_id;
+    enum entry_type flag;
+    u32 table_size;
 	u32 port;
 	u32 etype;
 	u64 execute_time;
@@ -2355,6 +2367,25 @@ static int ovs_tt_cmd_add(struct sk_buff *skb, struct genl_info *info)
 		goto error;
 	}
 
+    if (a[OVS_TT_FLOW_ATTR_TABLE_ID]) {
+        table_id = *(u16 *)nla_data(a[OVS_TT_FLOW_ATTR_TABLE_ID]);
+        pr_info("I get the OVS_TT_FLOW_TABLE_ID: %d\n", table_id);
+    }
+    if (a[OVS_TT_FLOW_ATTR_FLAG]) {
+        flag = *(u16 *)nla_data(a[OVS_TT_FLOW_ATTR_FLAG]);
+        switch (flag) {
+        case FIRST_ENTRY:
+            pr_info("I get the OVS_TT_FLOW_ATTR_FLAG: FIRST_ENTRY.\n");
+            table_size = *(u32 *)nla_data(a[OVS_TT_FLOW_ATTR_TABLE_SIZE]);
+            pr_info("I get the OVS_TT_FLOW_ATTR_TABLE_SIZE: %d\n", table_size);
+            break;
+        case LAST_ENTRY:
+            pr_info("I get the OVS_TT_FLOW_ATTR_FLAG: LAST_ENTRY.\n");
+            break;
+        case UNSPEC_ENTRY:
+            break;
+        }        
+    }
 	if (a[OVS_TT_FLOW_ATTR_PORT]) {
 		port = *(u32 *)nla_data(a[OVS_TT_FLOW_ATTR_PORT]);
 		pr_info("I get the OVS_TT_FLOW_ATTR_PORT: %d\n", port);
@@ -2468,7 +2499,7 @@ error:
 }
 
 static struct genl_ops dp_tt_genl_ops[] = {
-	{	.cmd = OVS_TT_FLOW_CMD_NEW,
+	{	.cmd = OVS_TT_FLOW_CMD_ADD,
 		.policy = tt_policy,
 		.doit = ovs_tt_cmd_add,
 	},
