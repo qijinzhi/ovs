@@ -274,7 +274,6 @@ static void ovs_dp_process_tt_packet(struct sk_buff *skb)
 	struct vport *p = OVS_CB(skb)->input_vport;
 	struct datapath *dp = p->dp;
 	struct timespec arrive_stamp;
-	struct tt_table* arrive_tt_table;
 	struct tt_header* tthdr;
 	struct tt_table_item* tt_item;
 	struct timespec current_time;
@@ -296,11 +295,7 @@ static void ovs_dp_process_tt_packet(struct sk_buff *skb)
 	pr_info("PROCESS: vport_no %d arrive flow id %d.\n", p->port_no, flow_id);
 	
 	/* loop up tt arrive table. */
-	arrive_tt_table = ovsl_dereference(p->arrive_tt_table);
-	if (!arrive_tt_table) {
-		return;
-	}
-	tt_item = tt_table_lookup(arrive_tt_table, flow_id);
+	tt_item = ovs_vport_lookup_arrive_tt_table(p, flow_id);
 	if (!tt_item) {
 		return;
 	}
@@ -2214,7 +2209,6 @@ static int ovs_vport_cmd_get(struct sk_buff *skb, struct genl_info *info)
 	err = PTR_ERR(vport);
 	if (IS_ERR(vport))
 		goto exit_unlock_free;
-    pr_info("vport_name %s, vport_no %d", ovs_vport_name(vport), vport->port_no);
 	err = ovs_vport_cmd_fill_info(vport, reply, info->snd_portid,
 				      info->snd_seq, 0, OVS_VPORT_CMD_NEW);
 	BUG_ON(err < 0);
@@ -2341,8 +2335,6 @@ static int ovs_tt_cmd_put(struct sk_buff *skb, struct genl_info *info)
 	struct ovs_header *ovs_header = info->userhdr;
 	struct net *net = sock_net(skb->sk);
 	struct tt_table_item *tt_item;
-	struct tt_table *cur_tt_table;
-	struct tt_table *tmp_tt_table;
 	int error = -EINVAL;
 
 	if (unlikely(!ovs_header)) {
@@ -2427,37 +2419,22 @@ static int ovs_tt_cmd_put(struct sk_buff *skb, struct genl_info *info)
 		pr_info("get vport %d fail!\n", port);
 		goto error_kfree_item;
 	}
-
+    
 	if (etype == 1) {
-		cur_tt_table = rcu_dereference(vport->arrive_tt_table);
-		tmp_tt_table = tt_table_item_insert(cur_tt_table, tt_item);
-		if (tmp_tt_table) {
-			rcu_assign_pointer(vport->arrive_tt_table, tmp_tt_table);
-		}
-		else {
-			pr_info("ERROR: insert tt table faild!\n");
-		}
+        ovs_vport_modify_arrive_tt_item(vport, tt_item);
 	}
 	else {
-		cur_tt_table = rcu_dereference(vport->send_tt_table);
-		tmp_tt_table = tt_table_item_insert(cur_tt_table, tt_item);
-		if (tmp_tt_table) {
-			rcu_assign_pointer(vport->send_tt_table, tmp_tt_table);
-
-			// ==>>> just for test
-			if (tt_item->flow_id == 5) {
-				if (unlikely(dispatch(vport))) { 
-					pr_info("ERROR: dispatch send info fail!\n");
-				}
-				else {
-					ovs_vport_hrtimer_cancel(vport);
-					vport->send_info->advance_time = 2000;
-					ovs_vport_hrtimer_init(vport);
-				}
+        ovs_vport_modify_send_tt_item(vport, tt_item);
+		// ==>>> just for test
+		if (tt_item->flow_id == 5) {
+			if (unlikely(dispatch(vport))) { 
+				pr_info("ERROR: dispatch send info fail!\n");
 			}
-		}
-		else {
-			pr_info("ERROR: insert tt table faild!\n");
+			else {
+				ovs_vport_hrtimer_cancel(vport);
+				vport->tt_schedule_info->send_info->advance_time = 2000;
+				ovs_vport_hrtimer_init(vport);
+			}
 		}
 	}
 	ovs_unlock();

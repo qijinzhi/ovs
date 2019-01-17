@@ -265,7 +265,7 @@ struct tt_table* tt_table_delete_item(struct tt_table* cur_tt_table, u32 flow_id
 	return cur_tt_table;
 }
 
-struct tt_table* tt_table_item_insert(struct tt_table *cur_tt_table, const struct tt_table_item *new) 
+struct tt_table* tt_table_insert_item(struct tt_table *cur_tt_table, const struct tt_table_item *new) 
 {
 	u32 flow_id = new->flow_id;
 	struct tt_table_item *item;
@@ -402,6 +402,7 @@ int dispatch(struct vport* vport)
 	struct tt_send_cache *send_cache;
 	struct tt_table *send_table;
 	struct tt_table_item *tt_item;
+	struct tt_schedule_info *schedule_info;
 	u64 *send_times = NULL;
 	u32 *flow_ids = NULL;
 	u64 macro_period;
@@ -411,8 +412,9 @@ int dispatch(struct vport* vport)
 	u64 temp_period;
 	u64 offset;
 
-	send_info = vport->send_info;
-	send_table = rcu_dereference(vport->send_tt_table);
+	schedule_info = vport->tt_schedule_info;
+	send_info = schedule_info->send_info;
+	send_table = rcu_dereference(schedule_info->send_tt_table);
 	
 	if (unlikely(!send_table)) {
 		goto error_einval;
@@ -486,7 +488,7 @@ int dispatch(struct vport* vport)
 	send_cache->size = size;
 
 	send_info->macro_period = macro_period;
-	vport->send_info = send_info;	
+	schedule_info->send_info = send_info;	
 	
 	return 0;
 
@@ -503,7 +505,7 @@ error_enomen:
 
 }
 
-static u32 binarySearch(struct vport *vport, u64 mod_time)
+static u32 binarySearch(struct tt_schedule_info *schedule_info, u64 mod_time)
 {
 	u64 *send_times;
 	u32 *flow_ids;
@@ -512,9 +514,9 @@ static u32 binarySearch(struct vport *vport, u64 mod_time)
 	u32 mid;
 	u32 size;
 
-	send_times = vport->send_info->send_cache.send_times;
-	flow_ids = vport->send_info->send_cache.flow_ids;
-	size = vport->send_info->send_cache.size;
+	send_times = schedule_info->send_info->send_cache.send_times;
+	flow_ids = schedule_info->send_info->send_cache.flow_ids;
+	size = schedule_info->send_info->send_cache.size;
 	left = 0;
 	right = size;
 
@@ -530,7 +532,7 @@ static u32 binarySearch(struct vport *vport, u64 mod_time)
 	return left % size;
 }
 
-void get_next_time(struct vport *vport, u64 cur_time, u64 *wait_time, u32 *flow_id, u64 *send_time) 
+void get_next_time(struct tt_schedule_info *schedule_info, u64 cur_time, u64 *wait_time, u32 *flow_id, u64 *send_time) 
 {
 	u64 mod_time;
 	u32 idx;
@@ -538,11 +540,11 @@ void get_next_time(struct vport *vport, u64 cur_time, u64 *wait_time, u32 *flow_
 	struct tt_send_info *send_info;
 	struct tt_send_cache *send_cache;
 
-	send_info = vport->send_info;
+	send_info = schedule_info->send_info;
 	send_cache = &send_info->send_cache;
 	mod_time = cur_time % send_info->macro_period;
 	
-	idx = binarySearch(vport, mod_time);
+	idx = binarySearch(schedule_info, mod_time);
 	next_idx = idx + 1;
 	next_idx = next_idx % send_cache->size;
 
@@ -564,4 +566,31 @@ void get_next_time(struct vport *vport, u64 cur_time, u64 *wait_time, u32 *flow_
 	*send_time = cur_time + *send_time;
 	pr_info("SEND_INFO: mod_time %llu, cur_idx %d, current flow id %d, current send time %llu", \
 			mod_time, idx, send_cache->flow_ids[idx], send_cache->send_times[idx]);
+}
+
+struct tt_schedule_info *tt_schedule_info_alloc(struct vport* vport)
+{
+	struct tt_schedule_info *schedule_info;
+	schedule_info = kmalloc(sizeof(*schedule_info), GFP_KERNEL);
+	if (!schedule_info)
+		return NULL;
+
+	schedule_info->hrtimer_flag = 0;
+	schedule_info->is_edge_vport = 0;
+	schedule_info->vport = vport;
+	rcu_assign_pointer(schedule_info->arrive_tt_table, NULL);
+	rcu_assign_pointer(schedule_info->send_tt_table, NULL);
+
+	return schedule_info;
+}
+
+void tt_schedule_info_destroy(struct tt_schedule_info *schedule_info)
+{
+	if (schedule_info) {
+		if (rcu_dereference_raw(schedule_info->arrive_tt_table))
+			kfree(rcu_dereference_raw(schedule_info->arrive_tt_table));
+		if (rcu_dereference_raw(schedule_info->send_tt_table))
+			kfree(rcu_dereference_raw(schedule_info->send_tt_table));
+		kfree(schedule_info);
+	}
 }

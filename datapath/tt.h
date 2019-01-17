@@ -38,8 +38,6 @@
 #define TIMESPEC_TO_NSEC(time_spec) \
 	(time_spec.tv_sec * (u64)NSEC_PER_SECOND + time_spec.tv_nsec)
 
-//#define SWAP(x, y) x = x^y; y = x^y; x = x^y;
-
 struct tt_header {
 	u16 flow_id; /* tt flow_id */
 	u16 len; /* tt packet's length */
@@ -90,6 +88,26 @@ struct tt_send_info {
 	struct tt_send_cache send_cache; 
 };
 
+/**
+  * struct tt_schedule_info - tt schedule information in a vport
+  * @arrive_tt_table: tt arrive table
+  * @send_tt_table: tt send table
+  * @send_info: tt send info
+  * @timer: hrtimer for tt schedule
+  * @vport: pointer to a struct vport that has the tt schedule message
+  * @hrtimer_flag: hrtimer should or shouldn't restart, 1 for restart, 0 for not restart
+  * @is_edge_vport: whether the vport is a edge vport, 1 for yes, 0 for no
+  */
+struct tt_schedule_info {
+	struct tt_table __rcu *arrive_tt_table;
+	struct tt_table __rcu *send_tt_table;
+	struct tt_send_info *send_info;
+	struct hrtimer timer;
+	struct vport *vport;
+	u8 hrtimer_flag;
+	u8 is_edge_vport;
+};
+
 /* tt operation */
 bool udp_port_is_tt(__be16 port);
 bool eth_p_tt(__be16 eth_type);
@@ -103,13 +121,15 @@ int tt_to_trdp(struct sk_buff *skb);
 struct tt_table_item *tt_table_item_alloc(void);
 void rcu_free_tt_table(struct rcu_head *rcu);
 struct tt_table *tt_table_alloc(int size);
-struct tt_table_item* tt_table_lookup(const struct tt_table* cur_tt_table, const u32 flow_id);
+struct tt_table_item *tt_table_lookup(const struct tt_table* cur_tt_table, const u32 flow_id);
 int tt_table_num_items(const struct tt_table* cur_tt_table);
-struct tt_table* tt_table_delete_item(struct tt_table* cur_tt_table, u32 flow_id);
-struct tt_table* tt_table_item_insert(struct tt_table *cur_tt_table, const struct tt_table_item *new);
+struct tt_table *tt_table_delete_item(struct tt_table* cur_tt_table, u32 flow_id);
+struct tt_table *tt_table_insert_item(struct tt_table *cur_tt_table, const struct tt_table_item *new);
 
 /* tt send info */
 u64 global_time_read(void);
 int dispatch(struct vport* vport);
-void get_next_time(struct vport *vport, u64 cur_time, u64 *wait_time, u32 *flow_id, u64 *send_time);
+void get_next_time(struct tt_schedule_info *schedule_info, u64 cur_time, u64 *wait_time, u32 *flow_id, u64 *send_time);
+struct tt_schedule_info *tt_schedule_info_alloc(struct vport *vport);
+void tt_schedule_info_destroy(struct tt_schedule_info *schedule_info);
 #endif
