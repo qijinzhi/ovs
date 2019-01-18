@@ -2310,20 +2310,17 @@ struct genl_family dp_vport_genl_family = {
 
 /* tt */
 static const struct nla_policy tt_policy[] = {
-    [OVS_TT_FLOW_ATTR_FLOW_CNT] = { .type = NLA_U32 },
-    [OVS_TT_FLOW_ATTR_FLOW_START] = { .type = NLA_U8 }, 
-    [OVS_TT_FLOW_ATTR_FLOW_END] = { .type = NLA_U8 },
-    [OVS_TT_FLOW_ATTR_PORT] = { .type = NLA_U32 },
-    [OVS_TT_FLOW_ATTR_ETYPE] = { .type = NLA_U32 },
-    [OVS_TT_FLOW_ATTR_FLOW_ID] = { .type = NLA_U32 },
-    [OVS_TT_FLOW_ATTR_BASE_OFFSET] = { .type = NLA_U64 },
-    [OVS_TT_FLOW_ATTR_PERIOD] = { .type = NLA_U64 },
-    [OVS_TT_FLOW_ATTR_BUFFER_ID] = { .type = NLA_U32 },
-    [OVS_TT_FLOW_ATTR_PACKET_SIZE] = { .type = NLA_U32 },
-    [OVS_TT_FLOW_ATTR_EXECUTE_TIME] = { .type = NLA_U64 },
+	[OVS_TT_FLOW_ATTR_PORT] = { .type = NLA_U32 },
+	[OVS_TT_FLOW_ATTR_ETYPE] = { .type = NLA_U32 },
+	[OVS_TT_FLOW_ATTR_FLOW_ID] = { .type = NLA_U32 },
+	[OVS_TT_FLOW_ATTR_BASE_OFFSET] = { .type = NLA_U64 },
+	[OVS_TT_FLOW_ATTR_PERIOD] = { .type = NLA_U64 },
+	[OVS_TT_FLOW_ATTR_BUFFER_ID] = { .type = NLA_U32 },
+	[OVS_TT_FLOW_ATTR_PACKET_SIZE] = { .type = NLA_U32 },
+	[OVS_TT_FLOW_ATTR_EXECUTE_TIME] = { .type = NLA_U64 },
 };
 
-static int ovs_tt_cmd_put(struct sk_buff *skb, struct genl_info *info)
+static int ovs_tt_cmd_add(struct sk_buff *skb, struct genl_info *info)
 {
 	u32 port;
 	u32 etype;
@@ -2448,42 +2445,11 @@ error:
 	return error;
 }
 
-static int ovs_tt_cmd_add(struct sk_buff *skb, struct genl_info *info)
-{
-	struct nlattr **a = info->attrs;
-    u32 flow_cnt;
-    bool start;
-    bool end;
-    
-    if (a[OVS_TT_FLOW_ATTR_FLOW_START]) {
-        start = *(bool *)nla_data(a[OVS_TT_FLOW_ATTR_FLOW_START]);
-        if (start)
-            pr_info("Receive tt flow start!\n");
-        
-        if (a[OVS_TT_FLOW_ATTR_FLOW_CNT]) {
-            flow_cnt = *(u32 *)nla_data(a[OVS_TT_FLOW_ATTR_FLOW_CNT]);
-            pr_info("I get the OVS_TT_FLOW_ATTR_FLOW_CNT: %d\n", flow_cnt);
-        }
-    }
-    
-    if (a[OVS_TT_FLOW_ATTR_FLOW_END]) {
-        end = *(bool *)nla_data(a[OVS_TT_FLOW_ATTR_FLOW_END]);
-        if (end)
-            pr_info("Receive tt flow end!\n");
-    }
-    return 0;
-}
-
 static struct genl_ops dp_tt_genl_ops[] = {
-    {
-        .cmd = OVS_TT_FLOW_CMD_ADD,
-        .policy = tt_policy,
-        .doit = ovs_tt_cmd_add,
-    },
-    {   .cmd = OVS_TT_FLOW_CMD_PUT,
-        .policy = tt_policy,
-        .doit = ovs_tt_cmd_put,
-    },
+	{	.cmd = OVS_TT_FLOW_CMD_NEW,
+		.policy = tt_policy,
+		.doit = ovs_tt_cmd_add,
+	},
 };
 
 static struct genl_family dp_tt_genl_family = {

@@ -1795,11 +1795,6 @@ struct ofproto_class {
 /* ##-------------- ##*/
     enum ofperr (*tt_flow_add)(const struct ofproto *, 
                                 const struct ofputil_tt_flow_mod_msg *);
-    
-    enum ofperr (*tt_flow_receive_start)(const struct ofproto *, 
-                                             const unsigned int);
-    
-    enum ofperr (*tt_flow_receive_end)(const struct ofproto *);
 };
 
 extern const struct ofproto_class ofproto_dpif_class;

@@ -41,6 +41,12 @@ struct onf_exp_header {
 };
 OFP_ASSERT(sizeof(struct onf_exp_header) == 16);
 
+enum onf_tt_flow_ctrl_command {
+    ONF_TFCC_ADD = 0, /* New flow. */
+    ONF_TFCC_CLEAR = 1, /* Delete old flow table. */
+    ONF_TFCC_QUERY = 2, /* Get whole tt flow table. */
+};
+
 /* TT flow control message type */
 enum onf_tt_flow_ctrl_type {
     ONF_TFCT_DOWNLOAD_START_REQUEST = 0,
@@ -55,7 +61,8 @@ enum onf_tt_flow_ctrl_type {
 
 /* Message structure for ONF_ET_TT_FLOW_CONTROL. */
 struct onf_tt_flow_ctrl {
-    ovs_be32 type; /* ONF_TFCT_*. */
+    ovs_be16 command; /* One of ONF_TFCC_*. */
+    ovs_be16 type; /* ONF_TFCT_*. */
     ovs_be32 flow_count; /* The count of flow. */
 };
 OFP_ASSERT(sizeof(struct onf_tt_flow_ctrl) == 8);

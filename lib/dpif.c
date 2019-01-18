@@ -1760,38 +1760,3 @@ dpif_tt_flow_put(struct dpif *dpif,
     
     return op.error;
 }
-
-int
-dpif_tt_flow_receive_start(struct dpif *dpif, unsigned int flow_cnt)
-{
-    struct dpif_tt_op *opp;
-    struct dpif_tt_op op;
-    
-    op.type = DPIF_OP_TT_FLOW_ADD;
-    op.u.tt_flow_add.flow_cnt = flow_cnt;
-    op.u.tt_flow_add.start = true;
-    op.u.tt_flow_add.end = false;
-    
-    opp = &op;
-    
-    dpif_tt_operate(dpif, &opp, 1);
-    
-    return op.error;
-}
-
-int
-dpif_tt_flow_receive_end(struct dpif *dpif)
-{
-    struct dpif_tt_op *opp;
-    struct dpif_tt_op op;
-    
-    op.type = DPIF_OP_TT_FLOW_ADD;
-    op.u.tt_flow_add.start = false;
-    op.u.tt_flow_add.end = true;
-    
-    opp = &op;
-    
-    dpif_tt_operate(dpif, &opp, 1);
-    
-    return op.error;
-}

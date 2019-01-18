@@ -5757,26 +5757,9 @@ static enum ofperr
 tt_flow_add(const struct ofproto *ofproto_, const struct ofputil_tt_flow_mod_msg *mod)
 {
     struct ofproto_dpif *ofproto = ofproto_dpif_cast(ofproto_);
-    odp_port_t port = ofp_port_to_odp_port(ofproto, mod->port);
     dpif_tt_flow_put(ofproto->backer->dpif, 
-                     port, mod->etype, mod->flow_id, mod->base_offset,
+                     mod->port, mod->etype, mod->flow_id, mod->base_offset,
                      mod->period, mod->buffer_id, mod->packet_size, mod->execute_time);
-    return 0;
-}
-
-static enum ofperr 
-tt_flow_receive_start(const struct ofproto *ofproto_, const unsigned int flow_cnt)
-{
-    struct ofproto_dpif *ofproto = ofproto_dpif_cast(ofproto_);
-    dpif_tt_flow_receive_start(ofproto->backer->dpif, flow_cnt);
-    return 0;
-}
-
-static enum ofperr 
-tt_flow_receive_end(const struct ofproto *ofproto_)
-{
-    struct ofproto_dpif *ofproto = ofproto_dpif_cast(ofproto_);
-    dpif_tt_flow_receive_end(ofproto->backer->dpif);
     return 0;
 }
 
@@ -5876,7 +5859,5 @@ const struct ofproto_class ofproto_dpif_class = {
     group_modify,               /* group_modify */
     group_get_stats,            /* group_get_stats */
     get_datapath_version,       /* get_datapath_version */
-    tt_flow_add,                /* install a tt table */
-    tt_flow_receive_start,      /* start install a tt table */
-    tt_flow_receive_end,        /* end insatll a tt table */
+    tt_flow_add,               /* install a tt table */
 };

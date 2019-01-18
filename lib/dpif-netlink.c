@@ -2344,20 +2344,6 @@ dpif_netlink_ct_flush(struct dpif *dpif OVS_UNUSED, const uint16_t *zone)
 #endif
 
 /* tt extension*/
-struct dpif_netlink_tt_flow_control {
-    /* Generic Netlink header */
-    uint8_t cmd;
-    
-    /* struct ovs_header. */
-    unsigned int nlmsg_flags;
-    int dp_ifindex;
-    
-    /* Attributes */
-    ovs_be32 flow_cnt;
-    bool start;
-    bool end;
-};
-
 /* Appends to 'buf' (which must initially be empty) a "struct ovs_header"
  * followed by Netlink attributes corresponding to 'flow'. */
 struct dpif_netlink_tt_flow {
@@ -2386,25 +2372,6 @@ dpif_netlink_tt_flow_init(struct dpif_netlink_tt_flow *tt_flow)
     memset(tt_flow, 0, sizeof *tt_flow);
 }
 
-static void
-dpif_netlink_init_tt_flow_put(struct dpif_netlink *dpif,
-                           const struct dpif_tt_flow *put,
-                           struct dpif_netlink_tt_flow *request)
-{
-    dpif_netlink_tt_flow_init(request);
-    request->cmd = OVS_TT_FLOW_CMD_PUT;
-    request->port = put->port;
-    request->etype = put->etype;
-    request->flow_id = put->flow_id;
-    request->base_offset = put->base_offset;
-    request->period = put->period;
-    request->buffer_id = put->buffer_id;
-    request->packet_size = put->packet_size;
-    request->execute_time = put->execute_time;
-    request->dp_ifindex = dpif->dp_ifindex;
-    //dpif_netlink_flow_init_ufid(request, put->ufid, false);
-}
-
 /* Appends to 'buf' (which must initially be empty) a "struct ovs_header"
  * followed by Netlink attributes corresponding to 'flow'. */
 static void
@@ -2431,47 +2398,22 @@ dpif_netlink_tt_flow_to_ofpbuf(const struct dpif_netlink_tt_flow *flow,
 }
 
 static void
-dpif_netlink_tt_flow_control_init(struct dpif_netlink_tt_flow_control *tt_flow_control)
+dpif_netlink_init_tt_flow_put(struct dpif_netlink *dpif,
+                           const struct dpif_tt_flow_put *put,
+                           struct dpif_netlink_tt_flow *request)
 {
-    memset(tt_flow_control, 0, sizeof *tt_flow_control);
-}
-
-static void
-dpif_netlink_init_tt_flow_add(struct dpif_netlink *dpif,
-                              const struct dpif_tt_flow_add *add,
-                              struct dpif_netlink_tt_flow_control *request)
-{
-    dpif_netlink_tt_flow_control_init(request);
-    request->cmd = OVS_TT_FLOW_CMD_ADD;
+    dpif_netlink_tt_flow_init(request);
+    request->cmd = OVS_TT_FLOW_CMD_NEW;
+    request->port = put->port;
+    request->etype = put->etype;
+    request->flow_id = put->flow_id;
+    request->base_offset = put->base_offset;
+    request->period = put->period;
+    request->buffer_id = put->buffer_id;
+    request->packet_size = put->packet_size;
+    request->execute_time = put->execute_time;
     request->dp_ifindex = dpif->dp_ifindex;
-    request->flow_cnt = add->flow_cnt;
-    request->start = add->start;
-    if (add->start) {
-        request->flow_cnt = add->flow_cnt;
-    }
-    request->end = add->end;
-    if (add->end) {
-        request->flow_cnt = 0;
-    }
     //dpif_netlink_flow_init_ufid(request, put->ufid, false);
-}
-
-static void
-dpif_netlink_tt_flow_add_to_ofpbuf(const struct dpif_netlink_tt_flow_control *flow_control,
-                               struct ofpbuf *buf)
-{
-    struct ovs_header *ovs_header;
-    nl_msg_put_genlmsghdr(buf, 0, ovs_tt_family, 
-                          NLM_F_REQUEST, flow_control->cmd, OVS_TT_VERSION);
-    
-    ovs_header = ofpbuf_put_uninit(buf, sizeof *ovs_header);
-    ovs_header->dp_ifindex = flow_control->dp_ifindex;
-    
-    if (flow_control) {
-        nl_msg_put_u32(buf, OVS_TT_FLOW_ATTR_FLOW_CNT, flow_control->flow_cnt);
-        nl_msg_put_u8(buf, OVS_TT_FLOW_ATTR_FLOW_START, flow_control->start);
-        nl_msg_put_u8(buf, OVS_TT_FLOW_ATTR_FLOW_END, flow_control->end);
-    }
 }
 
 /* Executes, against 'dpif', up to the first 'n_ops' operations in 'ops'.
@@ -2500,12 +2442,10 @@ dpif_netlink_tt_operate__(struct dpif_netlink *dpif,
     for (i = 0; i < n_ops; i++) {
         struct op_auxdata *aux = &auxes[i];
         struct dpif_tt_op *op = ops[i];
-        struct dpif_tt_flow_add *add;
-        struct dpif_tt_flow *put;
+        struct dpif_tt_flow_put *put;
         //struct dpif_tt_flow_del *del;
         //struct dpif_tt_flow_get *get;
         struct dpif_netlink_tt_flow flow;
-        struct dpif_netlink_tt_flow_control flow_control;
 
         ofpbuf_use_stub(&aux->request,
                         aux->request_stub, sizeof aux->request_stub);
@@ -2515,13 +2455,6 @@ dpif_netlink_tt_operate__(struct dpif_netlink *dpif,
         aux->txn.reply = NULL;
 
         switch (op->type) {
-        case DPIF_OP_TT_FLOW_ADD:
-            
-            add = &op->u.tt_flow_add;
-            dpif_netlink_init_tt_flow_add(dpif, add, &flow_control);
-            dpif_netlink_tt_flow_add_to_ofpbuf(&flow_control, &aux->request);
-            break;
-            
         case DPIF_OP_TT_FLOW_PUT:
             
             put = &op->u.tt_flow_put;
@@ -2592,8 +2525,6 @@ dpif_netlink_tt_operate__(struct dpif_netlink *dpif,
         op->error = txn->error;
 
         switch (op->type) {
-        case DPIF_OP_TT_FLOW_ADD:
-            break;
         case DPIF_OP_TT_FLOW_PUT:
             /*
             put = &op->u.flow_put;
