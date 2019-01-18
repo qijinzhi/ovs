@@ -1330,12 +1330,16 @@ enum ofperr ofputil_decode_requestforward(const struct ofp_header *,
 void ofputil_destroy_requestforward(struct ofputil_requestforward *);
 
 struct ofputil_tt_flow_ctrl_msg {
-    uint16_t    command;
+    uint16_t    table_id;
     uint16_t    type;
-    uint32_t    flow_count;
 };
 
 struct ofputil_tt_flow_mod_msg {
+    /* Entry control */
+    uint16_t    table_id;
+    uint32_t    metadata;
+    
+    /* Entry Field*/
     uint32_t    port;
     uint32_t    etype;
     uint32_t    flow_id;

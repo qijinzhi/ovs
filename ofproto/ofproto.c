@@ -315,6 +315,10 @@ static enum ofperr handle_flow_mod__(struct ofproto *,
 static void calc_duration(long long int start, long long int now,
                           uint32_t *sec, uint32_t *nsec);
 
+/* TT extension. */
+static enum ofperr tt_flow_mod(struct ofconn *,
+                               struct ofputil_tt_flow_mod_msg *);
+
 /* ofproto. */
 static uint64_t pick_datapath_id(const struct ofproto *);
 static uint64_t pick_fallback_dpid(void);
@@ -6903,6 +6907,8 @@ do_bundle_commit(struct ofconn *ofconn, uint32_t id, uint16_t flags)
                  * effect. */
                 be->ofm.version = version;
                 error = ofproto_flow_mod_start(ofproto, &be->ofm);
+            } else if (be->type == OFPTYPE_ONF_TT_FLOW_MOD) {
+                error = tt_flow_mod(ofconn, &be->ttm);
             } else {
                 OVS_NOT_REACHED();
             }
@@ -7057,6 +7063,9 @@ handle_bundle_add(struct ofconn *ofconn, const struct ofp_header *oh)
             error = ofproto_check_ofpacts(ofproto, bmsg->ofm.fm.ofpacts,
                                           bmsg->ofm.fm.ofpacts_len);
         }
+    } else if (type == OFPTYPE_ONF_TT_FLOW_MOD) {
+        VLOG_INFO("tt flow msg add!\n");
+        error = ofputil_decode_tt_table_mod(badd.msg, &bmsg->ttm);
     } else {
         OVS_NOT_REACHED();
     }
@@ -7143,32 +7152,23 @@ handle_tt_flow_ctrl(struct ofconn *ofconn, const struct ofp_header *oh)
     if (error) {
         return error;
     }
-    reply.command = tfctrl.command;
-    reply.flow_count = tfctrl.flow_count;
-
-    VLOG_INFO_RL(&rl, "TT control msg: flow_count %d", tfctrl.flow_count);
 
     switch (tfctrl.type) {
-    case ONF_TFCT_DOWNLOAD_START_REQUEST: 
-        // error = onf_tt_flow_receive_start(ofconn, 
-        //              tfctrl.command, tfctrl.flow_number);
-        reply.type = ONF_TFCT_DOWNLOAD_START_REPLY;
+    case ONF_TFCT_ADD_TABLE_REQUEST:
+        // TODO(chenweihang):
+        // error = onf_tt_flow_receive_start(ofconn, tfctrl.flow_count);
+        reply.table_id = tfctrl.table_id;
+        reply.type = ONF_TFCT_ADD_TABLE_REPLY;
         break;
-    case ONF_TFCT_DOWNLOAD_END_REQUEST:
-        // error = onf_tt_flow_receive_end(ofconn,
-        //              tfctrl.command, tfctrl.flow_number);
-        reply.type = ONF_TFCT_DOWNLOAD_END_REPLY;
-        break;
-    case ONF_TFCT_CLEAR_OLD_REQUEST:
-        reply.type = ONF_TFCT_CLEAR_OLD_REPLY;
+    case ONF_TFCT_DELETE_TABLE_REQUEST:
+        reply.type = ONF_TFCT_DELETE_TABLE_REPLY;
         break;
     case ONF_TFCT_QUERY_TABLE_REQUEST:
         reply.type = ONF_TFCT_QUERY_TABLE_REPLY;
         break;
 
-    case ONF_TFCT_DOWNLOAD_START_REPLY:
-    case ONF_TFCT_DOWNLOAD_END_REPLY:
-    case ONF_TFCT_CLEAR_OLD_REPLY:
+    case ONF_TFCT_ADD_TABLE_REPLY:
+    case ONF_TFCT_DELETE_TABLE_REPLY:
     case ONF_TFCT_QUERY_TABLE_REPLY:
         // return ONFERR_ET_TFC_BAD_TYPE;
         break;
