@@ -781,7 +781,7 @@ enum ovs_action_attr {
 #define OVS_TT_VERSION 0x1
 
 enum ovs_tt_cmd {
-	OVS_TT_FLOW_CMD_NEW,
+	OVS_TT_FLOW_CMD_ADD,
 	OVS_TT_FLOW_CMD_DEL,
 	__OVS_TT_FLOW_CMD_MAX,
 };
@@ -797,6 +797,9 @@ enum ovs_tt_cmd {
  */
 enum ovs_tt_attr {
 	OVS_TT_FLOW_ATTR_UNSPEC,
+	OVS_TT_FLOW_ATTR_TABLE_ID,
+	OVS_TT_FLOW_ATTR_FLAG,
+	OVS_TT_FLOW_ATTR_TABLE_SIZE,
 	OVS_TT_FLOW_ATTR_PORT,
 	OVS_TT_FLOW_ATTR_ETYPE,
 	OVS_TT_FLOW_ATTR_FLOW_ID,

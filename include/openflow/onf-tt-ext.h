@@ -53,24 +53,28 @@ enum onf_tt_flow_ctrl_type {
 
 /* Message structure for ONF_ET_TT_FLOW_CONTROL. */
 struct onf_tt_flow_ctrl {
-    ovs_be32 type; /* ONF_TFCT_*. */
-    ovs_be32 flow_count; /* The count of flow. */
+    ovs_be16 table_id;
+    ovs_be16 type; /* ONF_TFCT_*. */
 };
-OFP_ASSERT(sizeof(struct onf_tt_flow_ctrl) == 8);
+OFP_ASSERT(sizeof(struct onf_tt_flow_ctrl) == 4);
 
 /* Message structure for ONF_ET_TT_FLOW_MDOD. */
 struct onf_tt_flow_mod {
+    /* Entry control */
+    ovs_be16 table_id;
+    uint8_t  pad[6];
+    ovs_be32 metadata;
+    
     /* Entry field */
     ovs_be32 port; /* The entry related port. */
     ovs_be32 etype; /* Send entry or receive entry. */
     ovs_be32 flow_id; /* The identify of a flow. */
-    uint8_t pad[4];
     ovs_be64 base_offset; /* The scheduled time that the flow packet is received or sent. */
     ovs_be64 period; /* The scheduling period. */
     ovs_be32 buffer_id; /* Buffered packet to apply to. */
     ovs_be32 packet_size; /* The flow packet size. */
     ovs_be64 execute_time; /* The time this entry take effect. */
 };
-OFP_ASSERT(sizeof(struct onf_tt_flow_mod) == 48);
+OFP_ASSERT(sizeof(struct onf_tt_flow_mod) == 56);
 
 #endif /* openflow/onf-tt-ext.h */
