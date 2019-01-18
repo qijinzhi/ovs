@@ -9860,6 +9860,8 @@ ofputil_decode_tt_table_mod(const struct ofp_header *oh,
     
     tx_ttm = ofpbuf_pull(&msg, sizeof *tx_ttm);
     /* tx_tt_table_mod --> ofputil_tt_table_mod */
+    ttm->table_id = ntohs(tx_ttm->table_id);
+    ttm->metadata = ntohl(tx_ttm->metadata);
     ttm->port = ntohl(tx_ttm->port);
     ttm->etype = ntohl(tx_ttm->etype);
     ttm->flow_id = ntohl(tx_ttm->flow_id);
@@ -9885,8 +9887,8 @@ ofputil_decode_tt_flow_ctrl(const struct ofp_header *oh,
     ovs_assert(raw == OFPRAW_ONF_TT_FLOW_CONTROL);
 
     m = b.msg;
-    msg->type = ntohl(m->type);
-    msg->flow_count = ntohl(m->flow_count);
+    msg->table_id = ntohs(m->table_id);
+    msg->type = ntohs(m->type);
 
     return 0;
 }
@@ -9901,8 +9903,8 @@ ofputil_encode_tt_flow_ctrl_reply(const struct ofp_header *oh,
     buf = ofpraw_alloc_reply(OFPRAW_ONF_TT_FLOW_CONTROL, oh, 0);
     m = ofpbuf_put_zeros(buf, sizeof *m);
 
-    m->type = htonl(msg->type);
-    m->flow_count = htonl(msg->flow_count);
+    m->table_id = htons(msg->table_id);
+    m->type = htons(msg->type);
 
     return buf;
 }
