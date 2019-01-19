@@ -2332,7 +2332,7 @@ enum entry_type {
 static int ovs_tt_cmd_add(struct sk_buff *skb, struct genl_info *info)
 {
 	u16 table_id;
-	enum entry_type flag;
+	enum entry_type flag = UNSPEC_ENTRY;
 	u32 table_size;
 	u32 port;
 	u32 etype;
@@ -2346,18 +2346,10 @@ static int ovs_tt_cmd_add(struct sk_buff *skb, struct genl_info *info)
 	struct tt_table_item *tt_item;
 	int error = -EINVAL;
 
-	if (unlikely(!ovs_header)) {
-		pr_info("get ovs_header fail!\n");
-		goto error;
-	}
-	else {
-		pr_info("get dp_ifindex: %d", ovs_header->dp_ifindex);
-	}
-
 	tt_item = tt_table_item_alloc();
 	if (unlikely(!tt_item)) {
 		pr_info("alloc tt_item fail!\n");
-		goto error;
+		return error;
 	}
 
 	if (a[OVS_TT_FLOW_ATTR_TABLE_ID]) {
@@ -2366,18 +2358,6 @@ static int ovs_tt_cmd_add(struct sk_buff *skb, struct genl_info *info)
 	}
 	if (a[OVS_TT_FLOW_ATTR_FLAG]) {
 		flag = *(u16 *)nla_data(a[OVS_TT_FLOW_ATTR_FLAG]);
-		switch (flag) {
-		case FIRST_ENTRY:
-			pr_info("I get the OVS_TT_FLOW_ATTR_FLAG: FIRST_ENTRY.\n");
-			table_size = *(u32 *)nla_data(a[OVS_TT_FLOW_ATTR_TABLE_SIZE]);
-			pr_info("I get the OVS_TT_FLOW_ATTR_TABLE_SIZE: %d\n", table_size);
-			break;
-		case LAST_ENTRY:
-			pr_info("I get the OVS_TT_FLOW_ATTR_FLAG: LAST_ENTRY.\n");
-			break;
-		case UNSPEC_ENTRY:
-			break;
-		}        
 	}
 	if (a[OVS_TT_FLOW_ATTR_PORT]) {
 		port = *(u32 *)nla_data(a[OVS_TT_FLOW_ATTR_PORT]);
@@ -2453,26 +2433,55 @@ static int ovs_tt_cmd_add(struct sk_buff *skb, struct genl_info *info)
 	}
 	else {
         ovs_vport_modify_send_tt_item(vport, tt_item);
-		// ==>>> just for test
-		if (tt_item->flow_id == 5) {
-			if (unlikely(dispatch(vport))) { 
-				pr_info("ERROR: dispatch send info fail!\n");
-			}
-			else {
-				ovs_vport_hrtimer_cancel(vport);
-				vport->tt_schedule_info->send_info->advance_time = 2000;
-				ovs_vport_hrtimer_init(vport);
+    }
+
+	switch (flag) {
+	case FIRST_ENTRY:
+		pr_info("I get the OVS_TT_FLOW_ATTR_FLAG: FIRST_ENTRY.\n");
+		table_size = *(u32 *)nla_data(a[OVS_TT_FLOW_ATTR_TABLE_SIZE]);
+		pr_info("I get the OVS_TT_FLOW_ATTR_TABLE_SIZE: %d\n", table_size);
+		if (etype == 1) 
+			error = ovs_vport_arrive_tt_table_ready(vport, table_size);
+		else
+			error = ovs_vport_send_tt_table_ready(vport, table_size);
+		if (error) {
+			pr_info("ERROR: tt send table is not ready!");
+			goto  error_kfree_item;
+		}
+		break;
+	case LAST_ENTRY:
+		pr_info("I get the OVS_TT_FLOW_ATTR_FLAG: LAST_ENTRY.\n");
+			
+		if (etype == 1) {
+			if (!ovs_vport_arrive_tt_table_isok(vport)) {
+				pr_info("ERROR: receive arrive table items not finish!");
+				ovs_vport_del_arrive_tt_table(vport);
+				error = -EINVAL;
+				goto error_kfree_item;
 			}
 		}
-	}
-	ovs_unlock();
+		else {
+			/* start tt schedule*/
+			if (!ovs_vport_send_tt_table_isok(vport) || ovs_vport_start_tt_schedule(vport)) {
+				pr_info("ERROR: can not start tt schedule!\n");
+				ovs_vport_del_send_tt_table(vport);
+				error = -EINVAL;
+				goto error_kfree_item;
+			}
+		}
 
+		pr_info("SCHEDULE: start tt send schedule.\n");
+		break;
+	case UNSPEC_ENTRY:
+		break;
+	}
+
+	ovs_unlock();
+	kfree(tt_item);
 	return 0;
 error_kfree_item:
 	kfree(tt_item);
 	ovs_unlock();
-	return error;
-error:
 	return error;
 }
 

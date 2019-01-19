@@ -85,7 +85,7 @@ struct tt_send_cache {
 struct tt_send_info {
 	u64 macro_period;
 	u64 advance_time;
-	struct tt_send_cache send_cache; 
+	struct tt_send_cache send_cache;
 };
 
 /**
@@ -122,7 +122,7 @@ struct tt_table_item *tt_table_item_alloc(void);
 void rcu_free_tt_table(struct rcu_head *rcu);
 struct tt_table *tt_table_alloc(int size);
 struct tt_table_item *tt_table_lookup(const struct tt_table* cur_tt_table, const u32 flow_id);
-int tt_table_num_items(const struct tt_table* cur_tt_table);
+u32 tt_table_num_items(const struct tt_table* cur_tt_table);
 struct tt_table *tt_table_delete_item(struct tt_table* cur_tt_table, u32 flow_id);
 struct tt_table *tt_table_insert_item(struct tt_table *cur_tt_table, const struct tt_table_item *new);
 
@@ -130,6 +130,8 @@ struct tt_table *tt_table_insert_item(struct tt_table *cur_tt_table, const struc
 u64 global_time_read(void);
 int dispatch(struct vport* vport);
 void get_next_time(struct tt_schedule_info *schedule_info, u64 cur_time, u64 *wait_time, u32 *flow_id, u64 *send_time);
+void tt_send_info_free(struct tt_send_info *send_info);
+struct tt_send_info *tt_send_info_alloc(void);
 struct tt_schedule_info *tt_schedule_info_alloc(struct vport *vport);
-void tt_schedule_info_destroy(struct tt_schedule_info *schedule_info);
+void tt_schedule_info_free(struct tt_schedule_info *schedule_info);
 #endif

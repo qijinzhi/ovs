@@ -233,7 +233,7 @@ struct tt_table_item* tt_table_lookup(const struct tt_table* cur_tt_table, const
 	return tt_item;
 }
 
-int tt_table_num_items(const struct tt_table* cur_tt_table) 
+u32 tt_table_num_items(const struct tt_table* cur_tt_table) 
 {
 	return cur_tt_table->count;
 }
@@ -413,6 +413,10 @@ int dispatch(struct vport* vport)
 	u64 offset;
 
 	schedule_info = vport->tt_schedule_info;
+	if (unlikely(!schedule_info)) {
+		goto error_einval;
+	}
+
 	send_info = schedule_info->send_info;
 	send_table = rcu_dereference(schedule_info->send_tt_table);
 	
@@ -421,7 +425,7 @@ int dispatch(struct vport* vport)
 	}
 	
 	if (!send_info) {
-		send_info = kmalloc(sizeof(struct tt_send_info), GFP_KERNEL);
+		send_info = tt_send_info_alloc();
 		if (!send_info) {
 			goto error_enomen;
 		}
@@ -481,8 +485,13 @@ int dispatch(struct vport* vport)
 	for (i = 0; i < size;i++){
 		pr_info("DISPATCH: index %d, flow_id: %d, send_time: %llu", i, flow_ids[i], send_times[i]);
 	}
-	
+
 	send_cache = &send_info->send_cache;
+	if (send_cache->send_times)
+		kfree(send_cache->send_times);
+	if (send_cache->flow_ids)
+		kfree(send_cache->flow_ids);
+
 	send_cache->send_times = send_times;
 	send_cache->flow_ids = flow_ids;
 	send_cache->size = size;
@@ -502,7 +511,6 @@ error_enomen:
 	if (send_info)
 		kfree(send_info);
 	return -ENOMEM;
-
 }
 
 static u32 binarySearch(struct tt_schedule_info *schedule_info, u64 mod_time)
@@ -568,6 +576,32 @@ void get_next_time(struct tt_schedule_info *schedule_info, u64 cur_time, u64 *wa
 			mod_time, idx, send_cache->flow_ids[idx], send_cache->send_times[idx]);
 }
 
+void tt_send_info_free(struct tt_send_info *send_info)
+{
+	if (send_info) {
+		if (send_info->send_cache.send_times)
+			kfree(send_info->send_cache.send_times);
+		if (send_info->send_cache.flow_ids)
+			kfree(send_info->send_cache.flow_ids);
+		kfree(send_info);
+	}
+}
+
+struct tt_send_info *tt_send_info_alloc(void)
+{
+	struct tt_send_info *send_info;
+	send_info = kmalloc(sizeof(struct tt_send_info), GFP_KERNEL);
+	if (send_info) {
+		send_info->macro_period = 0;
+		send_info->advance_time = 0;
+		send_info->num_of_flows = 0;
+		send_info->send_cache.send_times = NULL;
+		send_info->send_cache.flow_ids = NULL;
+		send_info->send_cache.size = 0;
+	}
+	return send_info;
+}
+
 struct tt_schedule_info *tt_schedule_info_alloc(struct vport* vport)
 {
 	struct tt_schedule_info *schedule_info;
@@ -580,17 +614,20 @@ struct tt_schedule_info *tt_schedule_info_alloc(struct vport* vport)
 	schedule_info->vport = vport;
 	rcu_assign_pointer(schedule_info->arrive_tt_table, NULL);
 	rcu_assign_pointer(schedule_info->send_tt_table, NULL);
+	schedule_info->send_info = NULL;
 
 	return schedule_info;
 }
 
-void tt_schedule_info_destroy(struct tt_schedule_info *schedule_info)
+void tt_schedule_info_free(struct tt_schedule_info *schedule_info)
 {
 	if (schedule_info) {
 		if (rcu_dereference_raw(schedule_info->arrive_tt_table))
 			kfree(rcu_dereference_raw(schedule_info->arrive_tt_table));
 		if (rcu_dereference_raw(schedule_info->send_tt_table))
 			kfree(rcu_dereference_raw(schedule_info->send_tt_table));
+		if (schedule_info->send_info)
+			tt_send_info_free(schedule_info->send_info);
 		kfree(schedule_info);
 	}
 }

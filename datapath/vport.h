@@ -247,14 +247,15 @@ static inline struct rtable *ovs_tunnel_route_lookup(struct net *net,
 void ovs_vport_send(struct vport *vport, struct sk_buff *skb);
 
 /* tt operation*/
-int ovs_vport_hrtimer_init(struct vport* vport);
-void ovs_vport_hrtimer_cancel(struct vport *vport);
-int ovs_vport_modify_arrive_tt_item(struct vport* vport, struct tt_table_item *tt_item);
-int ovs_vport_modify_send_tt_item(struct vport* vport, struct tt_table_item *tt_item);
-int ovs_vport_del_arrive_tt_item(struct vport* vport, u32 flow_id);
-int ovs_vport_del_arrive_tt_item(struct vport* vport, u32 flow_id);
-struct tt_table_item* ovs_vport_lookup_arrive_tt_table(struct vport* vport, u32 flow_id);
-struct tt_table_item* ovs_vport_lookup_send_tt_table(struct vport* vport, u32 flow_id);
-void ovs_vport_del_arrive_tt_table(struct vport* vport);
-void ovs_vport_del_send_tt_table(struct vport* vport);
+int ovs_vport_modify_arrive_tt_item(struct vport *vport, struct tt_table_item *tt_item);
+int ovs_vport_modify_send_tt_item(struct vport *vport, struct tt_table_item *tt_item);
+int ovs_vport_del_arrive_tt_item(struct vport *vport, u32 flow_id);
+int ovs_vport_del_send_tt_item(struct vport *vport, u32 flow_id);
+struct tt_table_item *ovs_vport_lookup_arrive_tt_table(struct vport *vport, u32 flow_id);
+struct tt_table_item *ovs_vport_lookup_send_tt_table(struct vport *vport, u32 flow_id);
+bool ovs_vport_send_tt_table_isok(struct vport *vport);
+int ovs_vport_send_tt_table_ready(struct vport *vport, u32 table_size);
+int ovs_vport_start_tt_schedule(struct vport *vport);
+void ovs_vport_del_arrive_tt_table(struct vport *vport);
+void ovs_vport_del_send_tt_table(struct vport *vport);
 #endif /* vport.h */
