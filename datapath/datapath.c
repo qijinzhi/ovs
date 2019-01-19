@@ -2376,11 +2376,11 @@ static int ovs_tt_cmd_add(struct sk_buff *skb, struct genl_info *info)
 		switch (flag) {
 		case FIRST_ENTRY:
 			pr_info("I get the OVS_TT_FLOW_ATTR_FLAG: FIRST_ENTRY.\n");
-			table_size = *(u32 *)nla_data(a[OVS_TT_FLOW_ATTR_TABLE_SIZE]);
-			pr_info("I get the OVS_TT_FLOW_ATTR_TABLE_SIZE: %d\n", table_size);
 			break;
 		case LAST_ENTRY:
 			pr_info("I get the OVS_TT_FLOW_ATTR_FLAG: LAST_ENTRY.\n");
+			table_size = *(u32 *)nla_data(a[OVS_TT_FLOW_ATTR_TABLE_SIZE]);
+			pr_info("I get the OVS_TT_FLOW_ATTR_TABLE_SIZE: %d\n", table_size);
 			break;
 		case UNSPEC_ENTRY:
 			break;
