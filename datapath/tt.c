@@ -594,7 +594,6 @@ struct tt_send_info *tt_send_info_alloc(void)
 	if (send_info) {
 		send_info->macro_period = 0;
 		send_info->advance_time = 0;
-		send_info->num_of_flows = 0;
 		send_info->send_cache.send_times = NULL;
 		send_info->send_cache.flow_ids = NULL;
 		send_info->send_cache.size = 0;

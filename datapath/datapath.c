@@ -2438,22 +2438,18 @@ static int ovs_tt_cmd_add(struct sk_buff *skb, struct genl_info *info)
 	switch (flag) {
 	case FIRST_ENTRY:
 		pr_info("I get the OVS_TT_FLOW_ATTR_FLAG: FIRST_ENTRY.\n");
-		table_size = *(u32 *)nla_data(a[OVS_TT_FLOW_ATTR_TABLE_SIZE]);
-		pr_info("I get the OVS_TT_FLOW_ATTR_TABLE_SIZE: %d\n", table_size);
 		if (etype == 1) 
-			error = ovs_vport_arrive_tt_table_ready(vport, table_size);
+			ovs_vport_del_arrive_tt_table(vport);
 		else
-			error = ovs_vport_send_tt_table_ready(vport, table_size);
-		if (error) {
-			pr_info("ERROR: tt send table is not ready!");
-			goto  error_kfree_item;
-		}
+			ovs_vport_del_send_tt_table(vport);
 		break;
 	case LAST_ENTRY:
 		pr_info("I get the OVS_TT_FLOW_ATTR_FLAG: LAST_ENTRY.\n");
-			
+		table_size = *(u32 *)nla_data(a[OVS_TT_FLOW_ATTR_TABLE_SIZE]);
+		pr_info("I get the OVS_TT_FLOW_ATTR_TABLE_SIZE: %d\n", table_size);
+		
 		if (etype == 1) {
-			if (!ovs_vport_arrive_tt_table_isok(vport)) {
+			if (!ovs_vport_arrive_tt_table_isok(vport, table_size)) {
 				pr_info("ERROR: receive arrive table items not finish!");
 				ovs_vport_del_arrive_tt_table(vport);
 				error = -EINVAL;
@@ -2462,7 +2458,7 @@ static int ovs_tt_cmd_add(struct sk_buff *skb, struct genl_info *info)
 		}
 		else {
 			/* start tt schedule*/
-			if (!ovs_vport_send_tt_table_isok(vport) || ovs_vport_start_tt_schedule(vport)) {
+			if (!ovs_vport_send_tt_table_isok(vport, table_size) || ovs_vport_start_tt_schedule(vport)) {
 				pr_info("ERROR: can not start tt schedule!\n");
 				ovs_vport_del_send_tt_table(vport);
 				error = -EINVAL;

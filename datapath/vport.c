@@ -929,45 +929,26 @@ bool ovs_vport_send_tt_table_isok(struct vport* vport, u32 table_size)
 {
 	struct tt_schedule_info *schedule_info = vport->tt_schedule_info;
 	struct tt_table *cur_tt_table;
-	struct tt_send_info *send_info;
 
 	if (schedule_info) {
 		cur_tt_table = rcu_dereference_raw(schedule_info->send_tt_table);
 		if (cur_tt_table) {
-			send_info = schedule_info->send_info;
-			if (send_info)
-				return send_info->num_of_flows  == tt_table_num_items(cur_tt_table);
+			return table_size  == tt_table_num_items(cur_tt_table);
 		}
 	}
 	return false;
 }
 
-int ovs_vport_send_tt_table_ready(struct vport *vport)
+bool ovs_vport_arrive_tt_table_isok(struct vport* vport, u32 table_size)
 {
-	struct tt_schedule_info *schedule_info;
-	struct tt_send_info *send_info;
-	int flag;
-    int error;
+	struct tt_schedule_info *schedule_info = vport->tt_schedule_info;
+	struct tt_table *cur_tt_table;
 
-	if (!(vport->tt_schedule_info)) {
-		error = ovs_vport_tt_schedule_info_alloc(vport);
-		flag = 1;
-		if (error)
-			return error;
-	}
-
-	schedule_info = vport->tt_schedule_info;
-	send_info = schedule_info->send_info;
-
-	if (!send_info) {
-		send_info = tt_send_info_alloc();
-		if (!send_info) {
-			if (flag)
-				ovs_vport_tt_schedule_info_destroy(vport);
-			return -ENOMEM;
+	if (schedule_info) {
+		cur_tt_table = rcu_dereference_raw(schedule_info->arrive_tt_table);
+		if (cur_tt_table) {
+			return table_size  == tt_table_num_items(cur_tt_table);
 		}
-		schedule_info->send_info = send_info;
 	}
-	return 0;
+	return false;
 }
-
