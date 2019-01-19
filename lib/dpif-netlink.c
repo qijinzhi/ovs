@@ -2398,7 +2398,7 @@ dpif_netlink_tt_flow_to_ofpbuf(const struct dpif_netlink_tt_flow *flow,
     if (flow) {
         nl_msg_put_u16(buf, OVS_TT_FLOW_ATTR_TABLE_ID, flow->table_id);
         nl_msg_put_u32(buf, OVS_TT_FLOW_ATTR_FLAG, flow->flag);
-        if (flow->flag == FIRST_ENTRY) {
+        if (flow->flag == LAST_ENTRY) {
             nl_msg_put_u32(buf, OVS_TT_FLOW_ATTR_TABLE_SIZE, flow->table_size);
         }
         nl_msg_put_u32(buf, OVS_TT_FLOW_ATTR_PORT, flow->port);
@@ -2424,11 +2424,11 @@ dpif_netlink_init_tt_flow_put(struct dpif_netlink *dpif,
     switch (request->flag) {
     case 1: 
         request->flag = FIRST_ENTRY;
-        request->table_size = put->metadata & 0x00FFFFFF;
+        request->table_size = 0;
         break;
     case 2:
         request->flag = LAST_ENTRY;
-        request->table_size = 0;
+        request->table_size = put->metadata & 0x00FFFFFF;
         break;
     case 0:
         request->flag = UNSPEC_ENTRY;
