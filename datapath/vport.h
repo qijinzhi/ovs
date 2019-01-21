@@ -105,7 +105,7 @@ struct vport {
 
 	struct list_head detach_list;
 	struct rcu_head rcu;
-    struct tt_schedule_info *tt_schedule_info;
+	struct tt_schedule_info *tt_schedule_info;
 };
 
 /**

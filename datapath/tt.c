@@ -224,7 +224,7 @@ static struct tt_table *tt_table_realloc(struct tt_table *old, u32 size)
 	}
 
 	if (old) {
-		int i;
+		u32 i;
 
 		for (i = 0; i < old->max; i++) {
 			if (ovsl_dereference(old->tt_items[i]))

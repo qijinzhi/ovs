@@ -2384,7 +2384,7 @@ enum entry_type {
 
 static int ovs_dp_dispatch_tt_table(struct datapath *dp)
 {
-	int i = 0;
+	u32 i = 0;
 	int error = 0;
 	struct tmp_tt_table *tmp_tt_table = dp->tmp_tt_table;
 	struct tmp_tt_table_item *tmp_tt_item = NULL;
@@ -2421,7 +2421,6 @@ static int ovs_dp_dispatch_tt_table(struct datapath *dp)
 			goto free_vport_tt_table;
 	}
 
-	//TO modify...
 	/* start schedule */
 	for (i=0; i<tmp_tt_table->count; i++) {
 		tmp_tt_item = tmp_tt_table->tmp_tt_items[i];
@@ -2434,7 +2433,6 @@ static int ovs_dp_dispatch_tt_table(struct datapath *dp)
 	}
 	return 0;
 
-//TO modify...
 free_vport_tt_table:
 	for (i=0; i<tmp_tt_table->count; i++) {
 		tmp_tt_item = tmp_tt_table->tmp_tt_items[i];
