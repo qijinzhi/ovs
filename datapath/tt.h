@@ -62,6 +62,12 @@ struct tt_table_item {
 	u32 packet_size;
 };
 
+struct tmp_tt_table_item {
+	struct tt_table_item tt_info;
+	u32 etype; /* send or receive tt table item*/
+	u32 port_id; /* port id*/
+};
+
 /**
   struct tt_table - tt schedule table, 
 					must be protected by rcu.
@@ -73,7 +79,13 @@ struct tt_table_item {
 struct tt_table {
 	struct rcu_head rcu;
 	u32 count, max;
-	struct tt_table_item* __rcu tt_items[];
+	struct tt_table_item __rcu *tt_items[];
+};
+
+struct tmp_tt_table {
+	u32 count;
+	u32 max;
+	struct tmp_tt_table_item *tmp_tt_items[];
 };
 
 struct tt_send_cache {
@@ -120,11 +132,17 @@ int tt_to_trdp(struct sk_buff *skb);
 /* tt_table operation */
 struct tt_table_item *tt_table_item_alloc(void);
 void rcu_free_tt_table(struct rcu_head *rcu);
-struct tt_table *tt_table_alloc(int size);
+struct tt_table *tt_table_alloc(u32 size);
 struct tt_table_item *tt_table_lookup(const struct tt_table* cur_tt_table, const u32 flow_id);
 u32 tt_table_num_items(const struct tt_table* cur_tt_table);
 struct tt_table *tt_table_delete_item(struct tt_table* cur_tt_table, u32 flow_id);
 struct tt_table *tt_table_insert_item(struct tt_table *cur_tt_table, const struct tt_table_item *new);
+
+struct tmp_tt_table_item *tmp_tt_table_item_alloc(void);
+struct tmp_tt_table *tmp_tt_table_alloc(u32 size);
+u32 tmp_tt_table_num_items(const struct tmp_tt_table* cur_tmp_tt_table);
+struct tmp_tt_table *tmp_tt_table_insert_item(struct tmp_tt_table *cur_tmp_tt_table, const struct tmp_tt_table_item *new);
+void tmp_tt_table_free(struct tmp_tt_table *cur_tmp_tt_table);
 
 /* tt send info */
 u64 global_time_read(void);

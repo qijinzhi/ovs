@@ -24,6 +24,12 @@
 #include "tt.h"
 #include "vport.h"
 
+u32 max_u32(u32 a, u32 b)
+{
+	if (a < b) return b;
+	return a;
+}
+
 bool udp_port_is_tt(__be16 port) 
 {
 	return port == htons(TT_PORT);
@@ -170,21 +176,30 @@ struct tt_table_item *tt_table_item_alloc(void)
 
 void rcu_free_tt_table_item(struct rcu_head *rcu) 
 {
-	struct tt_table_item* item = container_of(rcu, struct tt_table_item, rcu);
+	struct tt_table_item *item = container_of(rcu, struct tt_table_item, rcu);
+
+	if (!item)
+		return;
+
 	kfree(item);
 }
 
 void rcu_free_tt_table(struct rcu_head *rcu) 
 {
 	struct tt_table *tt = container_of(rcu, struct tt_table, rcu);
+
+	if (!tt)
+		return;
+	
 	kfree(tt);
 }
 
-struct tt_table *tt_table_alloc(int size) 
+struct tt_table *tt_table_alloc(u32 size) 
 {
 	struct tt_table *new;
+	u32 i;
 
-	size = max(TT_TABLE_SIZE_MIN, size);
+	size = max_u32(TT_TABLE_SIZE_MIN, size);
 	new = kzalloc(sizeof(struct tt_table) +
 		sizeof(struct tt_table_item *) * size, GFP_KERNEL);
 	if (!new) {
@@ -193,11 +208,13 @@ struct tt_table *tt_table_alloc(int size)
 
 	new->count = 0;
 	new->max = size;
+	for (i = 0; i < new->max; i++)
+		rcu_assign_pointer(new->tt_items[i], NULL);
 
 	return new;
 }
 
-static struct tt_table* tt_table_realloc(struct tt_table *old, int size) 
+static struct tt_table *tt_table_realloc(struct tt_table *old, u32 size) 
 {
 	struct tt_table *new;
 
@@ -223,7 +240,7 @@ static struct tt_table* tt_table_realloc(struct tt_table *old, int size)
 	return new;
 }
 
-struct tt_table_item* tt_table_lookup(const struct tt_table* cur_tt_table, const u32 flow_id) 
+struct tt_table_item *tt_table_lookup(const struct tt_table* cur_tt_table, const u32 flow_id) 
 {
 	struct tt_table_item* tt_item;
 	if (!cur_tt_table || flow_id >= cur_tt_table->max) 
@@ -238,7 +255,7 @@ u32 tt_table_num_items(const struct tt_table* cur_tt_table)
 	return cur_tt_table->count;
 }
 
-struct tt_table* tt_table_delete_item(struct tt_table* cur_tt_table, u32 flow_id) 
+struct tt_table *tt_table_delete_item(struct tt_table* cur_tt_table, u32 flow_id) 
 {
 	struct tt_table_item* tt_item;
 	if (!cur_tt_table || flow_id >= cur_tt_table->max) {
@@ -265,7 +282,7 @@ struct tt_table* tt_table_delete_item(struct tt_table* cur_tt_table, u32 flow_id
 	return cur_tt_table;
 }
 
-struct tt_table* tt_table_insert_item(struct tt_table *cur_tt_table, const struct tt_table_item *new) 
+struct tt_table *tt_table_insert_item(struct tt_table *cur_tt_table, const struct tt_table_item *new) 
 {
 	u32 flow_id = new->flow_id;
 	struct tt_table_item *item;
@@ -282,18 +299,129 @@ struct tt_table* tt_table_insert_item(struct tt_table *cur_tt_table, const struc
 	item->base_offset = new->base_offset;
 	
 	if (!cur_tt_table || flow_id >= cur_tt_table->max) {
-		//pr_info("INSERT: flow_id %lu beyond the range %lu", flow_id, cur_tt_table->max);
 		struct tt_table* res_tt_table;
 		res_tt_table = tt_table_realloc(cur_tt_table, flow_id + TT_TABLE_SIZE_MIN);
 		if (!res_tt_table) {
-			kfree(item);
+			call_rcu(&item->rcu, rcu_free_tt_table_item);
 			return NULL;
 		}
 		rcu_assign_pointer(cur_tt_table, res_tt_table);
 	}
 	
+	
+	/* if the item is NULL, then count ++*/
+	if (!ovsl_dereference(cur_tt_table->tt_items[flow_id]))
+		cur_tt_table->count++;
+	
 	rcu_assign_pointer(cur_tt_table->tt_items[flow_id], item);
 	return cur_tt_table;
+}
+
+struct tmp_tt_table_item *tmp_tt_table_item_alloc(void)
+{
+	struct tmp_tt_table_item *item;
+
+	item = kmalloc(sizeof(*item), GFP_KERNEL);
+	if (!item) {
+		return NULL;
+	}
+	return item;
+}
+
+void tmp_tt_table_free(struct tmp_tt_table *tmp_tt) 
+{
+	if (!tmp_tt)
+		return;
+	
+	kfree(tmp_tt);
+}
+
+struct tmp_tt_table* tmp_tt_table_alloc(u32 size)
+{
+	struct tmp_tt_table *new;
+	u32 i;
+
+	size = max_u32(TT_TABLE_SIZE_MIN, size);
+	new = kzalloc(sizeof(struct tmp_tt_table) +
+		sizeof(struct tmp_tt_table_item *) * size, GFP_KERNEL);
+	if (!new) {
+		return NULL;
+	}
+
+	new->count = 0;
+	new->max = size;
+
+	for (i=0; i<new->max; i++)
+		new->tmp_tt_items[i] = NULL;
+
+	return new;
+}
+
+u32 tmp_tt_table_num_items(const struct tmp_tt_table* cur_tmp_tt_table)
+{
+	return cur_tmp_tt_table->count;
+}
+
+static struct tmp_tt_table *tmp_tt_table_realloc(struct tmp_tt_table *old, u32 size) 
+{
+	struct tmp_tt_table *new;
+
+	new = tmp_tt_table_alloc(size);
+	if (!new) {
+		return NULL;
+	}
+
+	if (old) {
+		u32 i;
+		for (i = 0; i < old->max; i++) {
+			if (old->tmp_tt_items[i]) {
+				new->tmp_tt_items[i] = old->tmp_tt_items[i];
+			}
+		}
+
+		new->count = old->count;
+	}
+
+	if (old) 
+		tmp_tt_table_free(old);
+	return new;
+}
+
+struct tmp_tt_table *tmp_tt_table_insert_item(struct tmp_tt_table *cur_tmp_tt_table,
+		const struct tmp_tt_table_item *new) 
+{
+	struct tmp_tt_table_item *item;
+	u32 count = 0;
+
+	item = tmp_tt_table_item_alloc();
+	if (!item) {
+		return NULL;
+	}
+
+	item->tt_info.flow_id = new->tt_info.flow_id;
+	item->tt_info.buffer_id = new->tt_info.buffer_id;
+	item->tt_info.period = new->tt_info.period;
+	item->tt_info.packet_size = new->tt_info.packet_size;
+	item->tt_info.base_offset = new->tt_info.base_offset;
+	item->etype = new->etype;
+	item->port_id = new->port_id;
+
+	if (!cur_tmp_tt_table || cur_tmp_tt_table->count == cur_tmp_tt_table->max) {
+		struct tmp_tt_table* res_tmp_tt_table;
+		if (cur_tmp_tt_table)
+			count = cur_tmp_tt_table->count;
+
+		res_tmp_tt_table = tmp_tt_table_realloc(cur_tmp_tt_table, count + TT_TABLE_SIZE_MIN);
+		if (!res_tmp_tt_table) {
+			kfree(item);
+			return NULL;
+		}
+		cur_tmp_tt_table = res_tmp_tt_table;
+	}
+
+	cur_tmp_tt_table->tmp_tt_items[cur_tmp_tt_table->count] = item;
+	cur_tmp_tt_table->count++;
+	return cur_tmp_tt_table;
 }
 
 u64 global_time_read(void) 
@@ -467,7 +595,6 @@ int dispatch(struct vport* vport)
 		if (!tt_item)
 			continue;
 		
-		pr_info("DEBUG: index %d flow_id %d", i, tt_item->flow_id);
 		offset = tt_item->base_offset;
 		while(offset < macro_period){
 			send_times[k] = offset; 
@@ -571,7 +698,7 @@ void get_next_time(struct tt_schedule_info *schedule_info, u64 cur_time, u64 *wa
 		*send_time = send_cache->send_times[idx] - mod_time;
 	}
 
-	*send_time = cur_time + *send_time;
+	//*send_time = cur_time + *send_time;
 	pr_info("SEND_INFO: mod_time %llu, cur_idx %d, current flow id %d, current send time %llu", \
 			mod_time, idx, send_cache->flow_ids[idx], send_cache->send_times[idx]);
 }
@@ -579,10 +706,14 @@ void get_next_time(struct tt_schedule_info *schedule_info, u64 cur_time, u64 *wa
 void tt_send_info_free(struct tt_send_info *send_info)
 {
 	if (send_info) {
-		if (send_info->send_cache.send_times)
+		if (send_info->send_cache.send_times) {
 			kfree(send_info->send_cache.send_times);
-		if (send_info->send_cache.flow_ids)
+			send_info->send_cache.send_times = NULL;
+		}
+		if (send_info->send_cache.flow_ids) {
 			kfree(send_info->send_cache.flow_ids);
+			send_info->send_cache.flow_ids = NULL;
+		}
 		kfree(send_info);
 	}
 }
@@ -621,12 +752,23 @@ struct tt_schedule_info *tt_schedule_info_alloc(struct vport* vport)
 void tt_schedule_info_free(struct tt_schedule_info *schedule_info)
 {
 	if (schedule_info) {
-		if (rcu_dereference_raw(schedule_info->arrive_tt_table))
-			kfree(rcu_dereference_raw(schedule_info->arrive_tt_table));
-		if (rcu_dereference_raw(schedule_info->send_tt_table))
-			kfree(rcu_dereference_raw(schedule_info->send_tt_table));
-		if (schedule_info->send_info)
+		struct tt_table *cur_tt_table;
+		if (schedule_info->send_info) {
 			tt_send_info_free(schedule_info->send_info);
+			schedule_info->send_info = NULL;
+		}	
+		cur_tt_table = ovsl_dereference(schedule_info->arrive_tt_table);
+		if (cur_tt_table) {
+			call_rcu(&cur_tt_table->rcu, rcu_free_tt_table);
+			rcu_assign_pointer(schedule_info->arrive_tt_table, NULL);
+		}
+		
+		cur_tt_table = ovsl_dereference(schedule_info->send_tt_table);
+		if (cur_tt_table) {
+            call_rcu(&cur_tt_table->rcu, rcu_free_tt_table);
+			rcu_assign_pointer(schedule_info->send_tt_table, NULL);
+		}
+		
 		kfree(schedule_info);
 	}
 }

@@ -71,6 +71,7 @@ struct dp_stats_percpu {
  * @stats_percpu: Per-CPU datapath statistics.
  * @net: Reference to net namespace.
  * @tt_buffer: store tt flow
+ * @tmp_tt_table: tmporary tt table
  * Context: See the comment on locking at the top of datapath.c for additional
  * locking information.
  */
@@ -92,6 +93,7 @@ struct datapath {
 
 	u32 user_features;
 	struct sk_buff** tt_buffer;
+	struct tmp_tt_table *tmp_tt_table;
 };
 
 /**
