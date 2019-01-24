@@ -207,19 +207,64 @@ static int get_dpifindex(const struct datapath *dp)
 	return ifindex;
 }
 
+static void ovs_dp_tt_info_init(struct datapath *dp)
+{
+	dp->tt_buffer = NULL;
+	dp->tmp_tt_table = NULL;
+}
+
+static void ovs_dp_tt_buffer_destroy(struct datapath *dp)
+{
+	u32 i;
+	if (!(dp->tt_buffer))
+		return;
+
+	for (i = 0; i < TT_BUFFER_SIZE; i++) {
+		if (dp->tt_buffer[i]) 
+			kfree(dp->tt_buffer[i]);
+	}
+	kfree(dp->tt_buffer);
+	dp->tt_buffer = NULL;
+}
+
+static int ovs_dp_tt_buffer_alloc(struct datapath *dp)
+{
+	u32 i;
+	if (dp->tt_buffer) {
+		ovs_dp_tt_buffer_destroy(dp);
+		dp->tt_buffer = NULL;
+	}
+
+	/* tt_buffer initialize. */
+	dp->tt_buffer = kzalloc(TT_BUFFER_SIZE * sizeof(struct sk_buff*), GFP_KERNEL);
+	if (!(dp->tt_buffer))
+		return -ENOMEM;
+
+	for (i = 0; i < TT_BUFFER_SIZE; i++)
+		dp->tt_buffer[i] = NULL;
+	return 0;
+}
+
+static void ovs_dp_tmp_tt_table_destroy(struct datapath *dp)
+{
+	if (!(dp->tmp_tt_table))
+		return;
+
+	tmp_tt_table_free(dp->tmp_tt_table);
+	dp->tmp_tt_table = NULL;
+}
+
 static void destroy_dp_rcu(struct rcu_head *rcu)
 {
-	int i;
 	struct datapath *dp = container_of(rcu, struct datapath, rcu);
 
 	ovs_flow_tbl_destroy(&dp->table);
 	free_percpu(dp->stats_percpu);
 	kfree(dp->ports);
-	for (i=0; i<TT_BUFFER_SIZE; i++) {
-		if (dp->tt_buffer[i]) 
-			kfree(dp->tt_buffer[i]);
-	}
-	kfree(dp->tt_buffer);
+	
+	ovs_dp_tt_buffer_destroy(dp);
+	ovs_dp_tmp_tt_table_destroy(dp);
+	
 	kfree(dp);
 }
 
@@ -274,7 +319,6 @@ static void ovs_dp_process_tt_packet(struct sk_buff *skb)
 	struct vport *p = OVS_CB(skb)->input_vport;
 	struct datapath *dp = p->dp;
 	struct timespec arrive_stamp;
-	struct tt_table* arrive_tt_table;
 	struct tt_header* tthdr;
 	struct tt_table_item* tt_item;
 	struct timespec current_time;
@@ -296,11 +340,7 @@ static void ovs_dp_process_tt_packet(struct sk_buff *skb)
 	pr_info("PROCESS: vport_no %d arrive flow id %d.\n", p->port_no, flow_id);
 	
 	/* loop up tt arrive table. */
-	arrive_tt_table = ovsl_dereference(p->arrive_tt_table);
-	if (!arrive_tt_table) {
-		return;
-	}
-	tt_item = tt_table_lookup(arrive_tt_table, flow_id);
+	tt_item = ovs_vport_lookup_arrive_tt_table(p, flow_id);
 	if (!tt_item) {
 		return;
 	}
@@ -329,11 +369,19 @@ static void ovs_dp_process_tt_packet(struct sk_buff *skb)
 
 	/* ===>> convert to trdp packet, just for test. */
 	err = tt_to_trdp(skb);
-	if (err) {
+	if (err) 
 		return;
+
+	if (!(dp->tt_buffer)) {
+		err = ovs_dp_tt_buffer_alloc(dp);
+		if (err) {
+			kfree_skb(skb);
+			pr_info("ERROR: alloc dp tt buffer faild, throw the packet!\n");
+			return;
+		}
 	}
-	
-	dp->tt_buffer[flow_id] = skb; /* ===>>> should be called with ruc?? */
+
+	dp->tt_buffer[flow_id] = skb;
 }
 
 /* Must be called with rcu_read_lock. */
@@ -1685,9 +1733,9 @@ static int ovs_dp_cmd_new(struct sk_buff *skb, struct genl_info *info)
 
 	for (i = 0; i < DP_VPORT_HASH_BUCKETS; i++)
 		INIT_HLIST_HEAD(&dp->ports[i]);
-	
-	/* tt_buffer initialize. */
-	dp->tt_buffer = kzalloc(TT_BUFFER_SIZE * sizeof(struct sk_buff*), GFP_KERNEL);
+
+	/** init tt info **/ 
+	ovs_dp_tt_info_init(dp);
 
 	/* Set up our datapath device. */
 	parms.name = nla_data(a[OVS_DP_ATTR_NAME]);
@@ -2334,37 +2382,102 @@ enum entry_type {
 	LAST_ENTRY,
 };
 
+static int ovs_dp_dispatch_tt_table(struct datapath *dp)
+{
+	u32 i = 0;
+	int error = 0;
+	struct tmp_tt_table *tmp_tt_table = dp->tmp_tt_table;
+	struct tmp_tt_table_item *tmp_tt_item = NULL;
+	struct vport *vport = NULL;
+	
+	if (!tmp_tt_table)
+		return -EINVAL;
+
+	/* check again */
+	for (i=0; i<tmp_tt_table->count; i++) {
+		tmp_tt_item = tmp_tt_table->tmp_tt_items[i];
+		if (!tmp_tt_item) {
+			pr_info("ERROR: can not dispatch tt table!\n");
+			return -EINVAL;
+		}
+		vport = ovs_lookup_vport(dp, tmp_tt_item->port_id);
+		if (!vport) {
+			pr_info("ERROR: can not dispatch tt table!\n");
+			return -EINVAL;
+		}
+		ovs_vport_finish_tt_schedule(vport);
+	}
+
+	/* add table */
+	for (i=0; i<tmp_tt_table->count; i++) {
+		tmp_tt_item = tmp_tt_table->tmp_tt_items[i];
+		vport = ovs_lookup_vport(dp, tmp_tt_item->port_id);
+		if (tmp_tt_item->etype) 
+			error = ovs_vport_modify_arrive_tt_item(vport, &tmp_tt_item->tt_info);
+		else 
+			error = ovs_vport_modify_send_tt_item(vport, &tmp_tt_item->tt_info);
+
+		if (error) 
+			goto free_vport_tt_table;
+	}
+
+	/* start schedule */
+	for (i=0; i<tmp_tt_table->count; i++) {
+		tmp_tt_item = tmp_tt_table->tmp_tt_items[i];
+		vport = ovs_lookup_vport(dp, tmp_tt_item->port_id);
+		if (0 == tmp_tt_item->etype && !ovs_vport_tt_schedule_isrunning(vport)) {
+			error = ovs_vport_start_tt_schedule(vport);
+			if (error)
+				goto free_vport_tt_table;
+		}
+	}
+	return 0;
+
+free_vport_tt_table:
+	for (i=0; i<tmp_tt_table->count; i++) {
+		tmp_tt_item = tmp_tt_table->tmp_tt_items[i];
+		vport = ovs_lookup_vport(dp, tmp_tt_item->port_id);
+		ovs_vport_finish_tt_schedule(vport);
+	}
+	return error;
+}
+
+static int ovs_dp_insert_tmp_tt_table_item(struct datapath *dp, 
+		struct tmp_tt_table_item *new)
+{
+	struct tmp_tt_table *res_tmp_tt_table = NULL;
+	struct tmp_tt_table *cur_tmp_tt_table = NULL;
+	if (!new)
+		return -EINVAL;
+
+	cur_tmp_tt_table = dp->tmp_tt_table;
+	res_tmp_tt_table = tmp_tt_table_insert_item(cur_tmp_tt_table, new);
+	
+	if (!res_tmp_tt_table)
+		return -EINVAL;
+	
+	dp->tmp_tt_table = res_tmp_tt_table;
+	return 0;
+}
+
 static int ovs_tt_cmd_add(struct sk_buff *skb, struct genl_info *info)
 {
 	u16 table_id;
-	enum entry_type flag;
-	u32 table_size;
-	u32 port;
-	u32 etype;
+	enum entry_type flag = UNSPEC_ENTRY;
+	u32 table_size = 0;
 	u64 execute_time;
 
 	struct nlattr **a = info->attrs;
-	struct vport *vport;
 	struct datapath *dp;
 	struct ovs_header *ovs_header = info->userhdr;
 	struct net *net = sock_net(skb->sk);
-	struct tt_table_item *tt_item;
-	struct tt_table *cur_tt_table;
-	struct tt_table *tmp_tt_table;
+	struct tmp_tt_table_item *tmp_tt_item;
 	int error = -EINVAL;
 
-	if (unlikely(!ovs_header)) {
-		pr_info("get ovs_header fail!\n");
-		goto error;
-	}
-	else {
-		pr_info("get dp_ifindex: %d", ovs_header->dp_ifindex);
-	}
-
-	tt_item = tt_table_item_alloc();
-	if (unlikely(!tt_item)) {
-		pr_info("alloc tt_item fail!\n");
-		goto error;
+	tmp_tt_item = tmp_tt_table_item_alloc();
+	if (unlikely(!tmp_tt_item)) {
+		pr_info("alloc tmp_tt_item fail!\n");
+		return error;
 	}
 
 	if (a[OVS_TT_FLOW_ATTR_TABLE_ID]) {
@@ -2373,64 +2486,52 @@ static int ovs_tt_cmd_add(struct sk_buff *skb, struct genl_info *info)
 	}
 	if (a[OVS_TT_FLOW_ATTR_FLAG]) {
 		flag = *(u16 *)nla_data(a[OVS_TT_FLOW_ATTR_FLAG]);
-		switch (flag) {
-		case FIRST_ENTRY:
-			pr_info("I get the OVS_TT_FLOW_ATTR_FLAG: FIRST_ENTRY.\n");
-			break;
-		case LAST_ENTRY:
-			pr_info("I get the OVS_TT_FLOW_ATTR_FLAG: LAST_ENTRY.\n");
-			table_size = *(u32 *)nla_data(a[OVS_TT_FLOW_ATTR_TABLE_SIZE]);
-			pr_info("I get the OVS_TT_FLOW_ATTR_TABLE_SIZE: %d\n", table_size);
-			break;
-		case UNSPEC_ENTRY:
-			break;
-		}        
 	}
 	if (a[OVS_TT_FLOW_ATTR_PORT]) {
-		port = *(u32 *)nla_data(a[OVS_TT_FLOW_ATTR_PORT]);
-		pr_info("I get the OVS_TT_FLOW_ATTR_PORT: %d\n", port);
+		tmp_tt_item->port_id = *(u32 *)nla_data(a[OVS_TT_FLOW_ATTR_PORT]);
+		pr_info("I get the OVS_TT_FLOW_ATTR_PORT: %d\n", tmp_tt_item->port_id);
 	}
 	else
 		goto error_kfree_item;
 
 	if (a[OVS_TT_FLOW_ATTR_ETYPE]) {
-		etype = *(u32 *)nla_data(a[OVS_TT_FLOW_ATTR_ETYPE]);
-		pr_info("I get the OVS_TT_FLOW_ATTR_ETYPE: %d\n", etype);
+		tmp_tt_item->etype = *(u32 *)nla_data(a[OVS_TT_FLOW_ATTR_ETYPE]);
+		pr_info("I get the OVS_TT_FLOW_ATTR_ETYPE: %d\n", tmp_tt_item->etype);
 	}
 	else
 		goto error_kfree_item;
 
 	if (a[OVS_TT_FLOW_ATTR_FLOW_ID]) {
-		tt_item->flow_id = *(u32 *)nla_data(a[OVS_TT_FLOW_ATTR_FLOW_ID]);
-		pr_info("I get the OVS_TT_FLOW_ATTR_FLOW_ID: %d\n", tt_item->flow_id);
+		tmp_tt_item->tt_info.flow_id = *(u32 *)nla_data(a[OVS_TT_FLOW_ATTR_FLOW_ID]);
+		pr_info("I get the OVS_TT_FLOW_ATTR_FLOW_ID: %d\n", tmp_tt_item->tt_info.flow_id);
 	}
 	else
 		goto error_kfree_item;
 
 	if (a[OVS_TT_FLOW_ATTR_BASE_OFFSET]) {
-		tt_item->base_offset = *(u64 *)nla_data(a[OVS_TT_FLOW_ATTR_BASE_OFFSET]);
-		pr_info("I get the OVS_TT_FLOW_ATTR_BASE_OFFSET: %llu\n", tt_item->base_offset);
+		tmp_tt_item->tt_info.base_offset = *(u64 *)nla_data(a[OVS_TT_FLOW_ATTR_BASE_OFFSET]);
+		pr_info("I get the OVS_TT_FLOW_ATTR_BASE_OFFSET: %llu\n", tmp_tt_item->tt_info.base_offset);
 	}
 	else
 		goto error_kfree_item;
 
 	if (a[OVS_TT_FLOW_ATTR_PERIOD]) {
-		tt_item->period = *(u64 *)nla_data(a[OVS_TT_FLOW_ATTR_PERIOD]);
-		pr_info("I get the OVS_TT_FLOW_ATTR_PERIOD: %llu\n", tt_item->period);
+		tmp_tt_item->tt_info.period = *(u64 *)nla_data(a[OVS_TT_FLOW_ATTR_PERIOD]);
+		pr_info("I get the OVS_TT_FLOW_ATTR_PERIOD: %llu\n", tmp_tt_item->tt_info.period);
 	}
 	else
 		goto error_kfree_item;
 
 	if (a[OVS_TT_FLOW_ATTR_BUFFER_ID]) {
-		tt_item->buffer_id = *(u32 *)nla_data(a[OVS_TT_FLOW_ATTR_BUFFER_ID]);
-		pr_info("I get the OVS_TT_FLOW_ATTR_BUFFER_ID: %d\n", tt_item->buffer_id);
+		tmp_tt_item->tt_info.buffer_id = *(u32 *)nla_data(a[OVS_TT_FLOW_ATTR_BUFFER_ID]);
+		pr_info("I get the OVS_TT_FLOW_ATTR_BUFFER_ID: %d\n", tmp_tt_item->tt_info.buffer_id);
 	}
 	else
 		goto error_kfree_item;
 
 	if (a[OVS_TT_FLOW_ATTR_PACKET_SIZE]) {
-		tt_item->packet_size = *(u32 *)nla_data(a[OVS_TT_FLOW_ATTR_PACKET_SIZE]);
-		pr_info("I get the OVS_TT_FLOW_ATTR_PACKET_SIZE: %d\n", tt_item->packet_size);
+		tmp_tt_item->tt_info.packet_size = *(u32 *)nla_data(a[OVS_TT_FLOW_ATTR_PACKET_SIZE]);
+		pr_info("I get the OVS_TT_FLOW_ATTR_PACKET_SIZE: %d\n", tmp_tt_item->tt_info.packet_size);
 	}
 	else
 		goto error_kfree_item;
@@ -2449,52 +2550,59 @@ static int ovs_tt_cmd_add(struct sk_buff *skb, struct genl_info *info)
 		goto  error_kfree_item;
 	}
 
-	vport = ovs_lookup_vport(dp, port);
-	if (unlikely(!vport)) {
-		pr_info("get vport %d fail!\n", port);
+	if (FIRST_ENTRY == flag) {
+		ovs_dp_tmp_tt_table_destroy(dp);
+	}
+
+	error = ovs_dp_insert_tmp_tt_table_item(dp, tmp_tt_item);
+	if (error)
 		goto error_kfree_item;
-	}
 
-	if (etype == 1) {
-		cur_tt_table = rcu_dereference(vport->arrive_tt_table);
-		tmp_tt_table = tt_table_item_insert(cur_tt_table, tt_item);
-		if (tmp_tt_table) {
-			rcu_assign_pointer(vport->arrive_tt_table, tmp_tt_table);
-		}
-		else {
-			pr_info("ERROR: insert tt table faild!\n");
-		}
-	}
-	else {
-		cur_tt_table = rcu_dereference(vport->send_tt_table);
-		tmp_tt_table = tt_table_item_insert(cur_tt_table, tt_item);
-		if (tmp_tt_table) {
-			rcu_assign_pointer(vport->send_tt_table, tmp_tt_table);
-
-			// ==>>> just for test
-			if (tt_item->flow_id == 5) {
-				if (unlikely(dispatch(vport))) { 
-					pr_info("ERROR: dispatch send info fail!\n");
+	switch (flag) {
+	case FIRST_ENTRY:
+		pr_info("I get the OVS_TT_FLOW_ATTR_FLAG: FIRST_ENTRY.\n");
+		break;
+	case LAST_ENTRY:
+		pr_info("I get the OVS_TT_FLOW_ATTR_FLAG: LAST_ENTRY.\n");
+		
+		if (a[OVS_TT_FLOW_ATTR_TABLE_SIZE]) {
+			table_size = *(u32 *)nla_data(a[OVS_TT_FLOW_ATTR_TABLE_SIZE]);
+			pr_info("I get the OVS_TT_FLOW_ATTR_TABLE_SIZE: %d\n", table_size);
+			
+			if (table_size == tmp_tt_table_num_items(dp->tmp_tt_table)) {
+				error = ovs_dp_dispatch_tt_table(dp);
+				if (error) {
+					ovs_dp_tmp_tt_table_destroy(dp);
+					pr_info("ERROR: can not start tt schedule!\n");
+					goto error_kfree_item;
 				}
-				else {
-					ovs_vport_hrtimer_cancel(vport);
-					vport->send_info->advance_time = 2000;
-					ovs_vport_hrtimer_init(vport);
-				}
+			}
+			else {
+				pr_info("ERROR: can not get enough tt table, expect %u, actually %u!\n", 
+                        table_size, tmp_tt_table_num_items(dp->tmp_tt_table));
+				ovs_dp_tmp_tt_table_destroy(dp);
+				error = -EINVAL;
+				goto error_kfree_item;
 			}
 		}
 		else {
-			pr_info("ERROR: insert tt table faild!\n");
+			pr_info("ERROR: can not get enough tt table!\n");
+			ovs_dp_tmp_tt_table_destroy(dp);
+			error = -EINVAL;
+			goto error_kfree_item;
 		}
-	}
-	ovs_unlock();
 
+		break;
+	case UNSPEC_ENTRY:
+		break;
+	}
+
+	ovs_unlock();
+	kfree(tmp_tt_item);
 	return 0;
 error_kfree_item:
-	kfree(tt_item);
+	kfree(tmp_tt_item);
 	ovs_unlock();
-	return error;
-error:
 	return error;
 }
 

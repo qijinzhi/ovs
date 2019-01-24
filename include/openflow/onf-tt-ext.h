@@ -41,6 +41,12 @@ struct onf_exp_header {
 };
 OFP_ASSERT(sizeof(struct onf_exp_header) == 16);
 
+enum onf_tt_flow_ctrl_command {
+    ONF_TFCC_ADD = 0, /* New flow. */
+    ONF_TFCC_CLEAR = 1, /* Delete old flow table. */
+    ONF_TFCC_QUERY = 2, /* Get whole tt flow table. */
+};
+
 /* TT flow control message type */
 enum onf_tt_flow_ctrl_type {
     ONF_TFCT_ADD_TABLE_REQUEST = 0,

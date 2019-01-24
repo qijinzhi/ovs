@@ -160,6 +160,40 @@ struct vport *ovs_vport_locate(const struct net *net, const char *name)
 	return NULL;
 }
 
+static int ovs_vport_tt_schedule_info_alloc(struct vport *vport)
+{
+	if (likely(!(vport->tt_schedule_info))) {
+		struct tt_schedule_info *schedule_info = tt_schedule_info_alloc(vport);
+		if (!schedule_info)
+			return -ENOMEM;
+		vport->tt_schedule_info = schedule_info;
+	}
+	return 0;
+}
+
+/** hrtimer cancel **/
+static void ovs_vport_hrtimer_cancel(struct vport *vport) 
+{
+	int cancelled = 1;
+	if (!(vport->tt_schedule_info))
+		return;
+	if (1 == vport->tt_schedule_info->hrtimer_flag) {
+		vport->tt_schedule_info->hrtimer_flag = 0;
+		while (cancelled) {
+			cancelled = hrtimer_cancel(&vport->tt_schedule_info->timer);
+			pr_info("HRTIMER: hrtimer is running.");
+		}
+		pr_info("HRTIMER: hrtimer cancelled.");
+	}
+}
+
+void ovs_vport_finish_tt_schedule(struct vport *vport)
+{
+	ovs_vport_hrtimer_cancel(vport);
+	tt_schedule_info_free(vport->tt_schedule_info);
+	vport->tt_schedule_info = NULL; /* after free, should point to NULL */
+}
+
 /**
  *	ovs_vport_alloc - allocate and initialize new vport
  *
@@ -217,11 +251,7 @@ void ovs_vport_free(struct vport *vport)
 	 * it is safe to use raw dereference.
 	 */
 	kfree(rcu_dereference_raw(vport->upcall_portids));
-	ovs_vport_hrtimer_cancel(vport);
-	if (rcu_dereference_raw(vport->arrive_tt_table))
-		kfree(rcu_dereference_raw(vport->arrive_tt_table));
-	if (rcu_dereference_raw(vport->send_tt_table))
-		kfree(rcu_dereference_raw(vport->send_tt_table));
+	ovs_vport_finish_tt_schedule(vport);
 	kfree(vport);
 }
 EXPORT_SYMBOL_GPL(ovs_vport_free);
@@ -244,83 +274,95 @@ static enum hrtimer_restart hrtimer_handler(struct hrtimer *timer)
 	struct timespec current_time;
 	u64 wait_time;
 	u32 flow_id;
+	u64 offset_send_time;
 	u64 send_time;
 
-	struct sk_buff *skb;
-	struct sk_buff *out_skb;
-	struct vport *vport;
-	struct tt_send_info *send_info;
+	struct sk_buff *skb = NULL;
+	struct sk_buff *out_skb = NULL;
+	struct vport *vport = NULL;
+	struct tt_send_info *send_info = NULL;
+	struct tt_schedule_info *schedule_info = NULL;
 
-	vport = container_of(timer, struct vport, timer);
-	send_info = vport->send_info;
+	schedule_info = container_of(timer, struct tt_schedule_info, timer);
+	vport = schedule_info->vport;
+	send_info = schedule_info->send_info;
 	
 	global_register_time = global_time_read();  //read register time
-	get_next_time(vport, global_register_time, &wait_time, &flow_id, &send_time);
+	getnstimeofday(&current_time);
+	get_next_time(schedule_info, global_register_time, &wait_time, &flow_id, &offset_send_time);
+	send_time = TIMESPEC_TO_NSEC(current_time) + offset_send_time;
 	
-	if (!(vport->dp->tt_buffer[flow_id])) {
-		pr_info("MISS: vport id %d can't send flow id %u\n", vport->port_no, flow_id);
-	}
-
 	/* two tt flows send on the same time. */
 	if (0 == wait_time) {
-		wait_time = send_time - global_register_time + send_info->advance_time; 
+		wait_time = offset_send_time + send_info->advance_time; 
 	}
 
 	hrtimer_forward_now(timer, ns_to_ktime(wait_time));
-	
-	skb = vport->dp->tt_buffer[flow_id];
-	//vport->dp->tt_buffer[flow_id] = NULL;
-	
-	do {   
-		getnstimeofday(&current_time);
-	} while (send_time - TIMESPEC_TO_NSEC(current_time) < send_info->advance_time);
-	
-	if (likely(skb != NULL)) {
-		pr_info("FINISH: vport id %d send flow id %d \n", vport->port_no, flow_id);
-		out_skb = skb_clone(skb, GFP_ATOMIC);
-		ovs_vport_send(vport, out_skb);
+	//hrtimer_forward_now(timer, ns_to_ktime(wait_time/2 + offset_send_time));
+
+	if (vport->dp->tt_buffer) {
+		skb = vport->dp->tt_buffer[flow_id];
+		vport->dp->tt_buffer[flow_id] = NULL;
 	}
 
-	if (vport->hrtimer_flag)
+	getnstimeofday(&current_time);
+	if (send_time < TIMESPEC_TO_NSEC(current_time)) {
+		pr_info("MISS_ERROR: dispatch error, expect send time less than current time\n");
+	}
+	else {
+		while (send_time > TIMESPEC_TO_NSEC(current_time) && 
+				send_time - TIMESPEC_TO_NSEC(current_time) > send_info->advance_time) {   
+			getnstimeofday(&current_time);
+		}
+	
+		if (skb) {
+			pr_info("FINISH: vport id %d send flow id %d \n", vport->port_no, flow_id);
+			out_skb = skb_clone(skb, GFP_ATOMIC);
+			ovs_vport_send(vport, out_skb);
+			kfree(skb);
+		}
+		else {
+			pr_info("MISS: vport id %d can't send flow id %u\n", vport->port_no, flow_id);
+		}
+	}
+
+	if (schedule_info->hrtimer_flag)
 		return HRTIMER_RESTART;
 	else
 		return HRTIMER_NORESTART;
 }
 
-/** hrtimer init **/
-void ovs_vport_hrtimer_init(struct vport* vport) 
+static bool ovs_vport_check_hrtimer_isready(struct vport *vport) 
+{
+	return vport->tt_schedule_info && vport->tt_schedule_info->send_info;
+}
+
+/** hrtimer start **/
+static int ovs_vport_hrtimer_start(struct vport *vport) 
 { 
 	u64 global_register_time;
 	u64 offset_time;
 	struct timespec current_time;
 	struct tt_send_info *send_info;
+	struct tt_schedule_info *schedule_info;
+	
+	if (unlikely(!ovs_vport_check_hrtimer_isready(vport)))
+		return -EINVAL;
 
-	send_info = vport->send_info;
-	hrtimer_init(&vport->timer, CLOCK_REALTIME, HRTIMER_MODE_ABS);
-	vport->timer.function = hrtimer_handler;
-	vport->hrtimer_flag = 1;
+	schedule_info = vport->tt_schedule_info;
+	send_info = schedule_info->send_info;
+	hrtimer_init(&schedule_info->timer, CLOCK_REALTIME, HRTIMER_MODE_ABS);
+	schedule_info->timer.function = hrtimer_handler;
+	schedule_info->hrtimer_flag = 1;
 
 	global_register_time = global_time_read();  //read register time
 	getnstimeofday(&current_time);
 													 
 	offset_time = global_register_time % send_info->macro_period;
 	offset_time = send_info->macro_period - offset_time;
-	hrtimer_start(&vport->timer, ns_to_ktime(TIMESPEC_TO_NSEC(current_time) \
+	hrtimer_start(&schedule_info->timer, ns_to_ktime(TIMESPEC_TO_NSEC(current_time) \
 				+ offset_time - send_info->advance_time), HRTIMER_MODE_ABS); 
-}
-
-/** hrtimer cancel **/
-void ovs_vport_hrtimer_cancel(struct vport *vport) 
-{
-	int cancelled = 1;
-	if (1 == vport->hrtimer_flag) {
-		vport->hrtimer_flag = 0;
-		while (cancelled) {
-			cancelled = hrtimer_cancel(&vport->timer);
-			pr_info("HRTIMER: hrtimer is running.");
-		}
-		pr_info("HRTIMER: hrtimer cancelled.");
-	}
+	return 0;
 }
 
 /**
@@ -710,4 +752,203 @@ void ovs_vport_send(struct vport *vport, struct sk_buff *skb)
 
 drop:
 	kfree_skb(skb);
+}
+
+int ovs_vport_modify_arrive_tt_item(struct vport* vport, struct tt_table_item *tt_item)
+{
+	int error;
+	int flag = 0;
+	struct tt_schedule_info *schedule_info;
+	struct tt_table *cur_tt_table;
+	struct tt_table *tmp_tt_table;
+	
+	if (unlikely(!tt_item))
+		return -EINVAL;
+
+	if (!(vport->tt_schedule_info)) {
+		error = ovs_vport_tt_schedule_info_alloc(vport);
+		flag = 1;
+		if (error)
+			return error;
+	}
+
+	schedule_info = vport->tt_schedule_info;
+	cur_tt_table = rcu_dereference(schedule_info->arrive_tt_table);
+	tmp_tt_table = tt_table_insert_item(cur_tt_table, tt_item);
+	if (tmp_tt_table) {
+		rcu_assign_pointer(schedule_info->arrive_tt_table, tmp_tt_table);
+	}
+	else {
+		 pr_info("ERROR: insert into arrive tt table faild!\n");
+		 if (flag)
+			 ovs_vport_finish_tt_schedule(vport);
+		 return -ENOMEM; 
+	}
+	return 0;
+}
+
+int ovs_vport_modify_send_tt_item(struct vport* vport, struct tt_table_item *tt_item)
+{
+	int error;
+	int flag;
+	struct tt_schedule_info *schedule_info;
+	struct tt_table *cur_tt_table;
+	struct tt_table *tmp_tt_table;
+	
+	if (unlikely(!tt_item))
+		return -EINVAL;
+
+	if (!(vport->tt_schedule_info)) {
+		error = ovs_vport_tt_schedule_info_alloc(vport);
+		flag = 1;
+		if (error)
+			return error;
+	}
+
+	schedule_info = vport->tt_schedule_info;
+	cur_tt_table = rcu_dereference(schedule_info->send_tt_table);
+	tmp_tt_table = tt_table_insert_item(cur_tt_table, tt_item);
+	if (tmp_tt_table) {
+		rcu_assign_pointer(schedule_info->send_tt_table, tmp_tt_table);
+	}
+	else {
+		 pr_info("ERROR: insert into send tt table faild!\n");
+		 if (flag)
+			 ovs_vport_finish_tt_schedule(vport);
+		 return -ENOMEM; 
+	}
+	return 0;
+}
+
+int ovs_vport_del_arrive_tt_item(struct vport* vport, u32 flow_id)
+{
+	struct tt_schedule_info *schedule_info;
+	struct tt_table *cur_tt_table;
+	struct tt_table *tmp_tt_table;
+	
+	if (!(vport->tt_schedule_info)) 
+		return 0;
+
+	schedule_info = vport->tt_schedule_info;
+	cur_tt_table = rcu_dereference(schedule_info->arrive_tt_table);
+	tmp_tt_table = tt_table_delete_item(cur_tt_table, flow_id);
+	if (tmp_tt_table) {
+		rcu_assign_pointer(schedule_info->arrive_tt_table, tmp_tt_table);
+	}
+	else {
+		 pr_info("ERROR: delete from arrive tt table faild!\n");
+		 return -ENOMEM; 
+	}
+	return 0;
+}
+
+int ovs_vport_del_send_tt_item(struct vport* vport, u32 flow_id)
+{
+	struct tt_schedule_info *schedule_info;
+	struct tt_table *cur_tt_table;
+	struct tt_table *tmp_tt_table;
+	
+	if (!(vport->tt_schedule_info)) 
+		return 0;
+
+	schedule_info = vport->tt_schedule_info;
+	cur_tt_table = rcu_dereference(schedule_info->send_tt_table);
+	tmp_tt_table = tt_table_delete_item(cur_tt_table, flow_id);
+	if (tmp_tt_table) {
+		rcu_assign_pointer(schedule_info->send_tt_table, tmp_tt_table);
+	}
+	else {
+		 pr_info("ERROR: delete from arrive tt table faild!\n");
+		 return -ENOMEM; 
+	}
+	return 0;
+}
+
+struct tt_table_item* ovs_vport_lookup_arrive_tt_table(struct vport* vport, u32 flow_id)
+{
+	struct tt_schedule_info *schedule_info;
+	struct tt_table *cur_tt_table;
+	
+	if (!(vport->tt_schedule_info)) 
+		return NULL;
+
+	schedule_info = vport->tt_schedule_info;
+	cur_tt_table = rcu_dereference(schedule_info->arrive_tt_table);
+	if (!cur_tt_table) {
+		return NULL;
+	}
+
+	return tt_table_lookup(cur_tt_table, flow_id);
+}
+
+struct tt_table_item* ovs_vport_lookup_send_tt_table(struct vport* vport, u32 flow_id)
+{
+	struct tt_schedule_info *schedule_info;
+	struct tt_table *cur_tt_table;
+	
+	if (!(vport->tt_schedule_info)) 
+		return NULL;
+
+	schedule_info = vport->tt_schedule_info;
+	cur_tt_table = rcu_dereference(schedule_info->send_tt_table);
+	if (!cur_tt_table) {
+		return NULL;
+	}
+
+	return tt_table_lookup(cur_tt_table, flow_id);
+}
+
+void ovs_vport_del_arrive_tt_table(struct vport* vport)
+{
+	struct tt_schedule_info *schedule_info = vport->tt_schedule_info;
+	struct tt_table *cur_tt_table;
+	if (schedule_info) {
+		cur_tt_table = rcu_dereference(schedule_info->arrive_tt_table);
+		if (cur_tt_table) {
+			call_rcu(&cur_tt_table->rcu, rcu_free_tt_table);
+			rcu_assign_pointer(schedule_info->arrive_tt_table, NULL);
+		}
+    }
+}
+
+static void ovs_vport_tt_send_info_reset(struct vport *vport)
+{
+	struct tt_schedule_info *schedule_info = vport->tt_schedule_info;
+	if (schedule_info) {
+		if (schedule_info->send_info) {
+			tt_send_info_free(schedule_info->send_info);
+			schedule_info->send_info = NULL;
+		}
+	}
+}
+
+void ovs_vport_del_send_tt_table(struct vport* vport)
+{
+	struct tt_schedule_info *schedule_info = vport->tt_schedule_info;
+	struct tt_table *cur_tt_table;
+	if (schedule_info) {
+		cur_tt_table = rcu_dereference(schedule_info->send_tt_table);
+		if (cur_tt_table) {
+			call_rcu(&cur_tt_table->rcu, rcu_free_tt_table);
+			rcu_assign_pointer(schedule_info->send_tt_table, NULL);
+		}
+        ovs_vport_tt_send_info_reset(vport);
+    }
+}
+
+int ovs_vport_start_tt_schedule(struct vport* vport)
+{
+	ovs_vport_hrtimer_cancel(vport);
+	if (unlikely(dispatch(vport))) {
+		pr_info("ERROR: dispatch send info fail!");
+		return -EINVAL;
+	}
+	vport->tt_schedule_info->send_info->advance_time = 2000000; //===>just for test
+	ovs_vport_hrtimer_start(vport);
+	return 0;
+}
+
+bool ovs_vport_tt_schedule_isrunning(struct vport *vport)
+{
+	return NULL != vport->tt_schedule_info && 1 == vport->tt_schedule_info->hrtimer_flag;
 }
