@@ -2526,7 +2526,7 @@ static int ovs_tt_cmd_add(struct sk_buff *skb, struct genl_info *info)
 	struct nlattr **a = info->attrs;
 	struct datapath *dp;
 	struct ovs_header *ovs_header = info->userhdr;
-    struct sk_buff *reply;
+	struct sk_buff *reply;
 	struct net *net = sock_net(skb->sk);
 	struct tmp_tt_table_item *tmp_tt_item;
 	int error = -EINVAL;
@@ -2637,11 +2637,9 @@ static int ovs_tt_cmd_add(struct sk_buff *skb, struct genl_info *info)
 			else {
 				pr_info("ERROR: can not get enough tt table, expect %u, actually %u!\n", 
                         table_size, tmp_tt_table_num_items(dp->tmp_tt_table));
-               
-                reply = ovs_tt_flow_cmd_build_info(tmp_tt_table_num_items(dp->tmp_tt_table), 
-                                                   ovs_header->dp_ifindex, info, OVS_TT_FLOW_CMD_ADD);
-                genlmsg_reply(reply, info);
-
+				reply = ovs_tt_flow_cmd_build_info(tmp_tt_table_num_items(dp->tmp_tt_table), 
+												   ovs_header->dp_ifindex, info, OVS_TT_FLOW_CMD_ADD);
+				genlmsg_reply(reply, info);
 				ovs_dp_tmp_tt_table_destroy(dp);
 				error = -EINVAL;
 				goto error_kfree_item;
@@ -2658,8 +2656,8 @@ static int ovs_tt_cmd_add(struct sk_buff *skb, struct genl_info *info)
 	case UNSPEC_ENTRY:
 		break;
 	}
-
-    ovs_unlock(); 
+	
+	ovs_unlock(); 
 	kfree(tmp_tt_item);
 	return 0;
 

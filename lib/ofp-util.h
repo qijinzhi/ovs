@@ -1344,7 +1344,7 @@ struct ofputil_tt_flow_mod_msg {
     /* Entry control */
     uint16_t    table_id;
     uint32_t    flag;
-	uint32_t    table_size;
+    uint32_t    table_size;
     
     /* Entry Field*/
     uint32_t    port;

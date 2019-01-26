@@ -1747,8 +1747,8 @@ dpif_tt_flow_put(struct dpif *dpif,
     
     op.type = DPIF_OP_TT_FLOW_PUT;
     op.u.tt_flow_put.table_id = table_id;
-	op.u.tt_flow_put.flag = flag;
-	op.u.tt_flow_put.table_size = table_size;
+    op.u.tt_flow_put.flag = flag;
+    op.u.tt_flow_put.table_size = table_size;
     op.u.tt_flow_put.port = port;
     op.u.tt_flow_put.etype = etype;
     op.u.tt_flow_put.flow_id = flow_id;

@@ -2415,8 +2415,8 @@ dpif_netlink_init_tt_flow_put(struct dpif_netlink *dpif,
 {
     dpif_netlink_tt_flow_init(request);
     request->cmd = OVS_TT_FLOW_CMD_ADD;
-	request->flag = put->flag;
-	request->table_size = put->table_size;
+    request->flag = put->flag;
+    request->table_size = put->table_size;
     request->table_id = put->table_id;
     request->port = put->port;
     request->etype = put->etype;
@@ -2459,10 +2459,10 @@ dpif_netlink_tt_flow_from_ofpbuf(uint32_t *table_item_received,
 	genl = ofpbuf_try_pull(&b, sizeof *genl);
 	ovs_header = ofpbuf_try_pull(&b, sizeof *ovs_header);
 	
-	if (!nlmsg || !genl || !ovs_header
-			|| nlmsg->nlmsg_type != ovs_tt_family
-			|| !nl_policy_parse(&b, 0, ovs_tt_policy, a,
-								ARRAY_SIZE(ovs_tt_policy))) {
+    if (!nlmsg || !genl || !ovs_header
+            || nlmsg->nlmsg_type != ovs_tt_family
+            || !nl_policy_parse(&b, 0, ovs_tt_policy, a,
+                                ARRAY_SIZE(ovs_tt_policy))) {
         return EINVAL;
     }
 	
@@ -2586,15 +2586,15 @@ dpif_netlink_tt_operate__(struct dpif_netlink *dpif,
 
         switch (op->type) {
         case DPIF_OP_TT_FLOW_PUT:
-			put = &op->u.tt_flow_put;
-			if (put->flag == LAST_ENTRY) {
-				uint32_t table_item_received = 0;
-				dpif_netlink_tt_flow_from_ofpbuf(&table_item_received, txn->reply);
-				if (table_item_received == put->table_size) {
-					VLOG_WARN("The datapath said that it recevived all the table item.");
-				} else {
-					VLOG_WARN("The datapath said that it recevived the table item: %u, but I have sent %u!", 
-							  table_item_received, put->table_size);
+            put = &op->u.tt_flow_put;
+            if (put->flag == LAST_ENTRY) {
+                uint32_t table_item_received = 0;
+                dpif_netlink_tt_flow_from_ofpbuf(&table_item_received, txn->reply);
+                if (table_item_received == put->table_size) {
+                    VLOG_WARN("The datapath said that it recevived all the table item.");
+                } else {
+                    VLOG_WARN("The datapath said that it recevived the table item: %u, but I have sent %u!", 
+                              table_item_received, put->table_size);
 				}
 			}
             break;
